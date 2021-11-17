@@ -7,6 +7,8 @@ from picamera import PiCamera
 from imutils.video import FPS
 from cv2 import aruco
 import matplotlib.pyplot as plt
+from pylab import *
+from mpl_toolkits.mplot3d import Axes3D
 import json
 import time 
 import os
@@ -75,16 +77,29 @@ def relativePosition(rvec1, tvec1, rvec2, tvec2):
 	composedTvec = composedTvec.reshape((3, 1))
 	return composedRvec, composedTvec
 
+def computeMcalibMatrix(rvec42,tvec42):
+	M_calib    = np.matrix(cv2.Rodrigues(rvec42)[0])
+	newrow = [[0,0,0,1]]
+	tvecCol = np.reshape(tvec42, (3, 1))
+	M_calib=np.c_[M_calib,tvecCol]
+	M_calib = np.vstack((M_calib, newrow))
+	return M_calib
 
+def changeReference(tvec,matrix):
+	tvec = np.reshape(tvec, (3, 1))
+	tvec = np.vstack((tvec,[1]))
+	#print(tvec)
+	
+	return (inv(matrix) * tvec)
 
 
 #--- initialize the camera and grab a reference to the raw camera capture
 camera = PiCamera()
 #camera.rotation = 180
-camera.iso = 1000 # max ISO to force exposure time to minimum to get less motion blur
-camera.contrast = 80
+camera.iso = 1600 # max ISO to force exposure time to minimum to get less motion blur
+camera.contrast = 100
 camera.image_denoise = True
-camera.saturation = 100
+#camera.saturation = 100
 #camera.exposure_mode = "auto"
 #camera.image_effect = "negative"
 #camera.resolution = (1280, 960)
@@ -95,13 +110,6 @@ rawCapture = PiRGBArray(camera, size=camera.resolution)
 
 #--- start imutils fps counter
 fps = FPS().start()
-
-
-
-
-
-
-
 
 if __name__ == '__main__':
 	#start the MQTT thread
@@ -117,35 +125,62 @@ if __name__ == '__main__':
 	parameters =  aruco.DetectorParameters_create()
 	
 	#while(True):
+	M_calib = None
+	
 	for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
-		os.system('clear')
 		frame = frame_pi.array
 		t1 = time.time()
 		#pathent = "./images/Labeau/test7.png"
 		gray = cv2.cvtColor((frame), cv2.COLOR_BGR2GRAY)
 		corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
 		frame = aruco.drawDetectedMarkers(frame, corners)
+		os.system('clear')
 		if ids is not None:
+			fig = plt.figure(figsize=(4,4))
+			ax = fig.add_subplot(111, projection='3d')
+			#ax = fig.add_subplot(111)
 			for i in range(0,len(ids)):
-				markerSizeInCM = 7
+				if(ids[i][0] == 42):
+					markerSizeInCM = 9.6
+				else:
+					markerSizeInCM = 7
 				rvec , tvec, _ = aruco.estimatePoseSingleMarkers(corners[i], markerSizeInCM, K, D)
-				print(rvec,tvec)
 				str_position = "MARKER Position x=%4.0f  y=%4.0f  z=%4.0f"%(tvec[0][0][0], tvec[0][0][1], tvec[0][0][2])
 				font = cv2.FONT_HERSHEY_PLAIN
 				cv2.putText(frame, str_position, (0, (i+1)*100), font, 4, (0, 255, 0), 2, cv2.LINE_AA)
-
-			#-- Obtain the rotation matrix tag->camera
-			R_ct    = np.matrix(cv2.Rodrigues(rvec[0][0])[0])
-			R_tc    = R_ct.T
-
-		if ids is not None:
-			
+				#-- Obtain the rotation matrix tag->camera
+				if(ids[i][0]==42):
+					M_calib = computeMcalibMatrix(rvec[0][0],tvec[0][0])
+					print("id = "+str(ids[i][0]))
+					'''
+					vect = changeReference(tvec[0][0],M_calib)
+					ax.scatter(vect[0,0],vect[1,0],vect[2,0],label = str(ids[i][0]))
+					print(vect)
+					'''
+					tvec =tvec[0][0]
+					ax.scatter(tvec[0],tvec[1],tvec[2],label = str(ids[i][0]))
+					#print(np.reshape(changeReference(tvec[0][0],M_calib),(1, 4)))
+				else:
+					if M_calib is not None:
+						print("id = "+str(ids[i][0]))
+						vect = changeReference(tvec[0][0],M_calib)
+						'''
+						print(vect)
+						#vect = (np.reshape(changeReference(tvec[0][0],M_calib),(1, 4)))[0][0]
+						ax.scatter(vect[0,0],vect[1,0],vect[2,0],label = str(ids[i][0]))
+						'''
+						tvec =tvec[0][0]
+						ax.scatter(tvec[0],tvec[1],tvec[2],label = str(ids[i][0]))
+			ax.legend()
+			ax.grid(True)
+			plt.show()
+			time.sleep(1)
 			#aruco.drawAxis(frame, K, D, rvec[i], tvec[i], 20)
-			for i in range(0, len(ids)):
+			for j in range(0, len(ids)):
 				line_thickness = 1
-				if(ids[i][0] == 42):
+				if(ids[j][0] == 42):
 					#dessine le milieu de chaque tag
-					corner_42 = corners[i][0]
+					corner_42 = corners[j][0]
 					M = cv2.moments(corner_42)
 					x_sum = int(M["m10"] / M["m00"])
 					y_sum = int(M["m01"] / M["m00"])
@@ -162,14 +197,11 @@ if __name__ == '__main__':
 					rotated_point = rotation_matrix*original_point
 					'''
 			mqtt_pubData(ids,corners)			
-			print(ids)
-			print(tvec)
-			print(rvec)
 			
 			
 		#frame = cv2.resize(frame, (960, 540))
 		#frame = cv2.imread("1")
-		cv2.imshow("Img",cv2.resize(frame,(720,480)))
+		#cv2.imshow("Img",cv2.resize(frame,(720,480)))
 		# clear the stream in preparation for the next frame
 		rawCapture.truncate(0)
 
