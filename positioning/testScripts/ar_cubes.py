@@ -6,24 +6,25 @@ from picamera.array import PiRGBArray
 from picamera import PiCamera
 
 # Defines the path of the calibration file and the dictonary used
-calibration_path = "realsense_d435.npz"
 dictionary = aruco.DICT_4X4_100
-
-
+'''
 DIM=(2592, 1944)
-
 mtx=np.array([[1271.6340818922563, 0.0, 1167.4678127068892], [0.0, 1267.583299646622, 938.5488313394765], [0.0, 0.0, 1.0]])
 #Distorsion matrix
 dist=np.array([[-0.08022559999087736], [0.10435020556133874], [-0.11171079602705103], [0.03853140815187616]])
+'''
+
+# 50 images au labo avec une résolution de 1280x960
+DIM=(1280, 960)
+mtx=np.array([[630.932402116786, 0.0, 585.6531301759157], [0.0, 631.6869826709609, 478.8413904560236], [0.0, 0.0, 1.0]])
+dist=np.array([[-0.06670587491284909], [0.1057157290509116], [-0.13122001638126551], [0.04714118291127774]])
 
 camera = PiCamera()
 #camera.rotation = 180
 #camera.resolution = (1920, 1080)
-camera.resolution = (2592, 1944)
-
+camera.resolution = DIM# (2592, 1944)
 camera.framerate = 30
 rawCapture = PiRGBArray(camera, size=camera.resolution)
-
 
 def intUndis():
 	global map1
@@ -48,7 +49,7 @@ def undistort(img, balance=0, dim2=None, dim3=None):
 intUndis()
 for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):	# Get frame from realsense and convert to grayscale image
 	img_rgb = frame_pi.array
-	img_rgb =  undistort(img_rgb, balance=0, dim2=None, dim3=None)
+	#img_rgb =  undistort(img_rgb, balance=0, dim2=None, dim3=None)
 
 	img_gray = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
 	
