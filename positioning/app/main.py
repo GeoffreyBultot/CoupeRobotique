@@ -33,10 +33,6 @@ def data_Thread(theadID):
 
 #vid = cv2.VideoCapture(0) # define a video capture object
 
-def change_res(width, height):
-	vid.set(3, width)
-	vid.set(4, height)
-
 def mqtt_pubData(ids,corners):
 	userdata = []
 	for i in range(0,len(ids)):

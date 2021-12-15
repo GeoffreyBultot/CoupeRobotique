@@ -10,12 +10,22 @@ from mpl_toolkits.mplot3d import Axes3D
 import time 
 import os
 
-'''
+
+#N_tag = size
+dict_sizes = {
+  42: 10, #tag central
+  17: 5, #face cachée - all
+  47: 5, #face tresor rouge
+  13: 5, #face tresor bleu
+  36: 5, #face tresor vert
+}
+
+
+
 #Labo avec 30 photos 2592 x 1944 le 15/11
+'''
 DIM=(2592, 1952)
-#Camera matrix
 K=np.array([[1271.6340818922563, 0.0, 1167.4678127068892], [0.0, 1267.583299646622, 938.5488313394765], [0.0, 0.0, 1.0]])
-#Distorsion matrix
 D=np.array([[-0.08022559999087736], [0.10435020556133874], [-0.11171079602705103], [0.03853140815187616]])
 '''
 
@@ -53,8 +63,8 @@ def calculateDistance(dx,dy):
 camera = PiCamera()
 #camera.rotation = 180
 #camera.iso = 800 # max ISO to force exposure time to minimum to get less motion blur
-#camera.contrast = 100
-camera.image_denoise = True 
+camera.contrast = 50
+#camera.image_denoise = True 
 #camera.resolution = (1920, 1080)
 camera.resolution = DIM
 camera.framerate = 30
@@ -71,7 +81,6 @@ def computeMcalibMatrix(rvec42,tvec42):
 def changeReference(tvec,matrix):
 	tvec = np.reshape(tvec, (3, 1))
 	tvec = np.vstack((tvec,[1]))
-	#print(tvec)
 	return (inv(matrix) * tvec)
 
 if __name__ == '__main__':
@@ -81,36 +90,42 @@ if __name__ == '__main__':
 	parameters =  aruco.DetectorParameters_create()
 	M_Calib = None
 	initUndis()
+	t1 = time.time()
+	for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+		#print(type(frame_pi.array))
+		t2 = time.time()
+		print(1/(t2-t1))
+		t1 = time.time()
+		rawCapture.truncate(0)
+		
+	
 	for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
 		t1 = time.time()
 		frame = frame_pi.array
-		#frame = undistort(frame)
-		#blur = cv2.blur(frame,(2,2),0)
-		#blur = cv2.GaussianBlur(frame,(3,3),cv2.BORDER_DEFAULT)
+		frame = undistort(frame)
 		
-		gray = frame # cv2.cvtColor((frame), cv2.COLOR_BGR2GRAY)
+		frame = cv2.blur(frame,(2,2),0)
+		#gray = cv2.GaussianBlur(frame,(3,3),cv2.BORDER_DEFAULT)
+		#gray = frame 
+		gray = cv2.cvtColor((frame), cv2.COLOR_BGR2GRAY)
 		
-		#ret,gray = cv2.threshold(gray,100,255,cv2.THRESH_BINARY) #TODO update the treshold
+		ret,gray = cv2.threshold(gray,200,255,cv2.THRESH_BINARY) #TODO update the treshold
 		corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
-		frame = aruco.drawDetectedMarkers(frame, corners)
+		gray = aruco.drawDetectedMarkers(frame, corners)
 		#frame = aruco.drawDetectedMarkers(frame, rejectedImgPoints)
 		
 		if ids is not None:
 			#fig = plt.figure(figsize=(4,4))
 			#a1 = fig.add_subplot(111)#, projection='3d')
-			#markerSizeInCM = 7#9.6
-			#rvec , tvec, _ = aruco.estimatePoseSingleMarkers(corners, markerSizeInCM, K, D)
 			markers_tvec = []
 			markers_rvec = []
-			#markers_tvec = np.array([])
-			#markers_rvec = np.array([])
 			for i in range(0,len(ids)):
 				corner = corners[i]
-				if(ids[i][0] == 42):
-					markerSizeInCM = 10
+
+				if(ids[i][0] in dict_sizes):
+					markerSizeInCM = dict_sizes[ids[i][0]]
 				else:
 					markerSizeInCM = 6.7
-				
 				rvec , tvec, _ = aruco.estimatePoseSingleMarkers(corner, markerSizeInCM, K, D)
 				
 				#markers_tvec.append( [tvec[0][0][0],tvec[0][0][1],tvec[0][0][2]])
@@ -120,34 +135,25 @@ if __name__ == '__main__':
 				#np.append([markers_tvec,tvec],axis = 0)
 				#a1.scatter(vect[0,0],vect[0,1],label = str(ids[i][0]))
 				
-				if(ids[i][0] == 42):
+				if(ids[i][0] == 13):
 					M_Calib = computeMcalibMatrix(rvec,tvec)
 					nVec = changeReference(tvec,M_Calib)
-					#tvec = (np.reshape(changeReference(tvec,M_Calib),(1, 4)))
-					print(nVec)
 					markers_tvec.append( [nVec[0],nVec[1],nVec[2]])
 					markers_rvec.append( [rvec[0][0][0],rvec[0][0][1],rvec[0][0][2]])
 				else:
 					if M_Calib is not None:
-						print("id = "+str(ids[i][0]))
+						#print("id = "+str(ids[i][0]))
 						#vect = tvec[i]
 						nVec = changeReference(tvec,M_Calib)
 						markers_tvec.append( [nVec[0],nVec[1],nVec[2]])
 						markers_rvec.append( [rvec[0][0][0],rvec[0][0][1],rvec[0][0][2]])
-				
-						#vect = (np.reshape(changeReference(vect[0],M_Calib),(1, 4)))[0][0]
-						#print(vect)
-						#print(vect[0,1])
 						#a1.scatter(vect[0,0],vect[0,1],label = str(ids[i][0]))
-
+				print(markers_tvec)
 				#aruco.drawAxis(frame,K,D, rvec, tvec, 10)
 				#cv2.putText(frame, str_position, (0, (i+1)*100), font, 4, (0, 255, 0), 2, cv2.LINE_AA)
 			
-			if(len(ids) == 2):
+			if(len(ids) == 2 and len(markers_tvec) == 2 ):
 				os.system('clear')
-				#d = ((x2 - x1)2 + (y2 - y1)2 + (z2 - z1)2)1/2    
-				print(markers_tvec[0][0])
-				print(markers_tvec[1][0])
 				dx = markers_tvec[0][0]-markers_tvec[1][0]
 				print("dx = "+str(dx))
 				dy = markers_tvec[0][1]-markers_tvec[1][1]
@@ -155,11 +161,6 @@ if __name__ == '__main__':
 				dz = markers_tvec[0][1]-markers_tvec[1][1]
 				print("dz = "+str(dz))
 				print("distance ="+str(calculateDistance(dx,dy)))
-				'''
-				print("rx "+str(ids[i][0])+"= "+str(tvec[0][0][0]-tvec[1][0][0]))
-				print("ry"+str(tvec[0][0][1]-tvec[1][0][1]))
-				print("rz"+str(tvec[0][0][2]-tvec[1][0][2]))
-				'''
 			else:
 				print(len(ids))
 			'''
@@ -172,7 +173,7 @@ if __name__ == '__main__':
 			'''
 		#cv2.imshow('Measure distance',cv2.resize(frame,(960,600)))	
 		#cv2.imshow('Measure distance',cv2.resize(frame,(1920,1000)))
-		cv2.imshow('Measure distance',frame)
+		cv2.imshow('Measure distance',gray)
 		#cv2.imshow('blured',blur)
 		rawCapture.truncate(0)
 		if cv2.waitKey(1) & 0xFF == ord('q'):
