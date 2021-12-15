@@ -42,7 +42,7 @@ D=np.array([[-0.08022559999087736], [0.10435020556133874], [-0.11171079602705103
 
 
 #C_IP_MQTT = "172.30.40.24"
-C_IP_MQTT = "172.30.40.21"
+C_IP_MQTT = "172.30.40.20"
 
 angle = -50
 theta = math.radians(angle)
@@ -135,7 +135,7 @@ def mqtt_pubData(ids,tvecs,rvecs):
 		marker["id"]= int(ids[i][0])
 		marker["x"]= int(tvecs[i][0])
 		marker["y"]= int(tvecs[i][1])
-		marker["rz"] = abs(int(rvecs[i][2]))
+		marker["rz"] = int(rvecs[i][2])
 		userdata.append(marker)
 		payload_json = json.dumps(marker)
 		client.publish("data/"+str(ids[i][0]), payload=payload_json, qos=0, retain=False)
