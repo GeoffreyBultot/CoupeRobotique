@@ -125,7 +125,7 @@ class Arm():
 
     def setServoOurAngle(self, uid, angle):
         if uid == 0:
-            newAngle = 240-angle
+            newAngle = 150-angle
         elif uid == 1:
             newAngle = 150+angle
         elif uid == 2:
@@ -152,9 +152,9 @@ armTest = Arm()
 armTest.enableTorqueAll()
 
 while 1:
-    uid = float(input("Servo ID :\n"))
+    uid = int(input("Servo ID :\n"))
     angle = float(input("Angle position :\n"))
-    armTest.setServoOurAngle(uid, 0)
+    armTest.setServoOurAngle(uid, angle)
     '''x = float(input("X position :\n"))
     y = float(input("Y position :\n"))
     p = int(input("Phi angle  :\n"))

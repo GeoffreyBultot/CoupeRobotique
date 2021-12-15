@@ -1,5 +1,4 @@
 from enum import IntEnum
-from motorLogic import goForward
 import serial
 import math
 
@@ -15,7 +14,8 @@ Je suis extrêmement con
 """
 
 class Robot:
-	positionX, positionY = 0
+	positionX = 0
+	positionY = 0
 	orientationZ = 0
 	FORWARD = 1
 	BACKWARD = 0
@@ -54,7 +54,8 @@ class Robot:
 		self.positionY = 0
 		self.orientationZ = 0
 		self.reg = 0
-		self.PORT = "/dev/ttyUSB0"
+		#self.PORT = "/dev/ttyUSB0"
+		self.PORT = "/dev/ttyACM0"
 		self.ser = serial.Serial (self.PORT, 
         baudrate = 115200)
 		self.DEBUG = 1

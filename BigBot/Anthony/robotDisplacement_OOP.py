@@ -9,7 +9,6 @@ import math
 import serial
 import json
 from enum import IntEnum
-from motorLogic import *
 import sys
 
 
