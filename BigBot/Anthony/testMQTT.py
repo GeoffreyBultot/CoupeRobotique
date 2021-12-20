@@ -1,10 +1,10 @@
 import json
 from enum import IntEnum
-from motorLogic import *
 import paho.mqtt.client as mqtt
 import _thread
 import time
 import serial
+from Robot import *
 
 C_IP_MQTT = "172.30.40.20"
 

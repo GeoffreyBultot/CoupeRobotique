@@ -10,9 +10,8 @@ class Ventouse():
 
         GPIO.setup(pinElectroValve, GPIO.OUT, initial=GPIO.LOW)
         GPIO.setup(pinAirPump, GPIO.OUT, initial=GPIO.LOW)
-        self.setDefault()
 
-    async def setDefault(self):
+    def setDefault(self):
         GPIO.output(self.electroValve, 0)
         GPIO.output(self.airPump, 0)
 
@@ -23,7 +22,7 @@ class Ventouse():
 
     async def drop(self):
         GPIO.output(self.electroValve, 1)
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.2)
         GPIO.output(self.electroValve, 0)
 
 '''async def main():
