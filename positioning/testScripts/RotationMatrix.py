@@ -33,18 +33,18 @@ dict_sizes = {
 DIM=(1280, 960)
 K=np.array([[630.932402116786, 0.0, 585.6531301759157], [0.0, 631.6869826709609, 478.8413904560236], [0.0, 0.0, 1.0]])
 D=np.array([[-0.06670587491284909], [0.1057157290509116], [-0.13122001638126551], [0.04714118291127774]])
-
-''' 	
-DIM=(2592, 1952)
+ 
+	
+""" DIM=(2592, 1952)
 K=np.array([[1271.6340818922563, 0.0, 1167.4678127068892], [0.0, 1267.583299646622, 938.5488313394765], [0.0, 0.0, 1.0]])
-D=np.array([[-0.08022559999087736], [0.10435020556133874], [-0.11171079602705103], [0.03853140815187616]])
-'''
+D=np.array([[-0.08022559999087736], [0.10435020556133874], [-0.11171079602705103], [0.03853140815187616]]) """
+
 
 
 #C_IP_MQTT = "172.30.40.24"
-C_IP_MQTT = "172.30.40.20"
+C_IP_MQTT = "172.30.40.34"
 
-angle = -50
+angle = 40
 theta = math.radians(angle)
 cosT = math.cos(theta)
 sinT = math.sin(theta)
@@ -134,8 +134,9 @@ def mqtt_pubData(ids,tvecs,rvecs):
 		marker = {}
 		marker["id"]= int(ids[i][0])
 		marker["x"]= int(tvecs[i][0])
-		marker["y"]= int(tvecs[i][1])
-		marker["rz"] = int(rvecs[i][2])
+		marker["y"]= -int(tvecs[i][1]) #?? because why the fuck not
+		marker["z"] = int(tvecs[i][2])
+		marker["rz"] = int(rvecs[i][1])
 		userdata.append(marker)
 		payload_json = json.dumps(marker)
 		client.publish("data/"+str(ids[i][0]), payload=payload_json, qos=0, retain=False)
@@ -184,7 +185,6 @@ if __name__ == '__main__':
 				#a1.scatter(tvec[0][0][0],tvec[0][0][1],label = str(ids[i][0]*10))
 				tvec = np.matmul(rotation_matrix, tvec[0][0])
 				rvec =  np.matmul(rotation_matrix, rvec[0][0])
-				
 				rotation,_ = cv2.Rodrigues(rvec)
 				rvec = rotationMatrixToEulerAngles(rotation)
 				#print(ids[i][0])
@@ -197,6 +197,8 @@ if __name__ == '__main__':
 				if(ids[i][0] == 42):
 					pass
 					#print(tvec)
+				""" if(ids[i][0] == 36):
+					print(rvec) """
 			mqtt_pubData(ids,markers_tvec,markers_rvec)
 				
 

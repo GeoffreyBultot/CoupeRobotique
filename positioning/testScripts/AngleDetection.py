@@ -49,13 +49,15 @@ marker_size = 2
 pos_42 = 0
 x_42 = 0
 y_42 = 0
+cap = cv2.VideoCapture(0)
 if __name__ == '__main__':
 	timeStart = 0
 	while(True):
 		Dist = []
-		pathent = "./images/foo.jpg"
+		ret,frame = cap.read()
+		#pathent = "./images/foo.jpg"
 		#pathent = "./images/markers.jpg"
-		frame = cv2.imread(pathent)#vid.read(0)
+		#frame = cv2.imread(pathent)#vid.read(0)
 		#frame=cv2.rotate(frame, cv2.ROTATE_180)
 		aruco_dict = aruco.Dictionary_get(aruco.DICT_ARUCO_ORIGINAL)#DICT_4X4_250
 		parameters =  aruco.DetectorParameters_create()
@@ -67,15 +69,16 @@ if __name__ == '__main__':
 		if ids is not None:
 			if timeNow - timeStart > C_t_refresh_Seconds:
 				timeStart = timeNow
-				markerSizeInCM = 2
+				markerSizeInCM = 5
 				rvec , tvec, _ = aruco.estimatePoseSingleMarkers(corners, markerSizeInCM, camera_matrix, distortion_coeff)
 				print("rvecs")
 				print(rvec)
-				for j in range(0,len(ids)):
-					aruco.drawAxis(frame, camera_matrix, distortion_coeff, rvec[j], tvec[j], 1)
+				#for j in range(0,len(ids)):
+				#	aruco.drawAxis(frame, camera_matrix, distortion_coeff, rvec[j], tvec[j], 1)
 				#frame = aruco.drawAxis(frame, camera_matrix, distortion_coeff, rvec, tvec, 1)  # Draw axis
 				#frame = cv2.resize(frame, ( 960,720))
 				cv2.imshow('blop',frame)
+				time.sleep(2)
 				if cv2.waitKey(1) & 0xFF == ord('q'):
 					break
 # Destroy all the windows
