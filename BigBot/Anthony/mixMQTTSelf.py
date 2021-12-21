@@ -1,16 +1,12 @@
 #!/usr/bin/python
-import Robot
+from Robot import *
 import numpy as np
 import cv2
 from picamera import PiCamera
 from picamera.array import PiRGBArray
 from cv2 import aruco
 import math
-import serial
 import json
-from enum import IntEnum
-from motorLogic import *
-import sys
 import _thread
 import paho.mqtt.client as mqtt
 import time
@@ -41,12 +37,12 @@ camera_matrix = np.array([[1.28799158e+03 , 0.00000000e+00, 6.53026522e+02],
 
 distortion_coeff = np.array([[ 0.20209073, -1.26402114,0.0062418, -0.00483837,1.88582135]])
 
-angle_camera = 90
+angle_camera = -60
 theta_camera = math.radians(angle_camera)
 
-rotation_matrix = np.array([[1,           0 ,                0], #rotation axe X
-[0           ,math.cos(theta_camera),               -math.sin(theta_camera)],
-[0,         math.sin(theta_camera),                math.cos(theta_camera)]]) 
+rotation_matrix = np.array([[1,     		      0 ,          								      0], #rotation axe X
+					[0     	 		     ,math.cos(theta_camera),               -math.sin(theta_camera)],
+					[0    		    	 ,math.sin(theta_camera),                math.cos(theta_camera)]]) 
 
 
 
@@ -57,11 +53,12 @@ camera.contrast = 100
 camera.resolution = (1296,976)
 rawCapture = PiRGBArray(camera, size=camera.resolution)
 
-C_IP_MQTT = "172.30.40.20"
+C_IP_MQTT = "172.30.40.105"
 
 client = mqtt.Client() 
 targetX = 0
-targetY = 0
+targetY = 100
+tagRobot = 1
 
 newMessage = False
 
@@ -72,6 +69,7 @@ def on_message(client, userdata, message):
 	global newMessage
 	global JeanMichelDuma
 	global targetX,targetY
+	global tagRobot	
 	if(newMessage == False):
 		msg = message.payload.decode("utf-8")
 		#print("message received " ,str(msg))
@@ -80,8 +78,8 @@ def on_message(client, userdata, message):
 		if(msg["id" ] == 47):
 			targetX = msg["x"]
 			targetY = msg["y"]
-			#print("Tag 42 X Y  = " + str(targetX) + " " + str(targetY))
-		elif(msg["id" ] == 17):
+			#print("Tag 47 X Y  = " + str(targetX) + " " + str(targetY))
+		elif(msg["id" ] == tagRobot):
 			JeanMichelDuma.positionX = msg["x"]
 			JeanMichelDuma.positionY = msg["y"]
 			JeanMichelDuma.orientationZ = msg["rz"]
@@ -90,7 +88,7 @@ def on_message(client, userdata, message):
 		newMessage = True
 	else:
 		print("RONPICH")
-		time.sleep(0.1)
+		#time.sleep(0.1)
 
 
 
@@ -99,11 +97,10 @@ def on_connect(client, userdata, flags, rc):
 	if rc==0:
 		print("connected OK Returned code=",rc)
 		client.subscribe("data/#")
-		newMessage = False
 	else:
 		print("Bad connection Returned code=",rc)
 		
-def data_Thread(theadID):
+def data_Thread(threadID):
 	while True:
 		print('[DEBUG	] Connecting to the TTN Broker...')
 		#client.connect("192.168.0.13", 1883, 60)
@@ -120,6 +117,7 @@ def data_Thread(theadID):
 
 if __name__ == '__main__':
 	JeanMichelDuma = Robot()
+	JeanMichelDuma.DEBUG = 1
 	markerSizeInCM = 5
 	aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_250)
 	parameters =  aruco.DetectorParameters_create()
@@ -131,10 +129,16 @@ if __name__ == '__main__':
 	arrived_close = False
 
 	while(not arrived_close):
-		distance = JeanMichelDuma.goToUsingLocation(targetX,targetY)
-		if(distance < 20):
-			arrived_close = True
-			print("Arrived")
+		if(newMessage == True):
+			print("Target X " + str(targetX) + " Y = " + str(targetY) )
+			print("Robot X "+ str(JeanMichelDuma.positionX) + " Robot Y = " + str(JeanMichelDuma.positionY))
+			#distance = JeanMichelDuma.goToDebugAligned(targetX,targetY)
+			distance = JeanMichelDuma.goToUsingLocation(targetX,targetY)
+			newMessage = False
+			if(distance < 10):
+				arrived_close = True
+				print("Arrived")
+				time.sleep(2)
 		
 
 
@@ -154,8 +158,9 @@ if __name__ == '__main__':
 			#print("Rotation : \n" + str(euleurAngle[2]))
 			rz = abs(euleurAngle[2])
 			coord_xyz = np.matmul(rotation_matrix, tvec)
+			print(coord_xyz)
 			angle = rz % 60
-			JeanMichelDuma.goToSelfCamera(coord_xyz[1],coord_xyz[0])
+			#JeanMichelDuma.goToSelfCamera(coord_xyz[2],coord_xyz[0])
 
 		rawCapture.truncate(0)
 

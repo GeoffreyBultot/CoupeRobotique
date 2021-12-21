@@ -1,15 +1,13 @@
-from enum import IntEnum
 import serial
 import math
+import time
+import sys
+from utils import computeDict,_set_motor
 
 """TODO 
 Serveur MQTT
-Logique déplacement
 
-!!!
-Plutot que de calculer chaque fois les registre
-foutre tout dans un dictionnaire et copier le binaire
-Je suis extrêmement con
+
 
 """
 
@@ -17,37 +15,11 @@ class Robot:
 	positionX = 0
 	positionY = 0
 	orientationZ = 0
-	FORWARD = 1
-	BACKWARD = 0
-	ON = 1
-	OFF = 0
 	reg = 0
 	DEBUG = 1
+	offsetCenter = 5
 
 	
-	
-
-
-	class Edir(IntEnum):
-		DIR_FL = 0
-		DIR_FR = 2
-		DIR_RL = 4
-		DIR_RR = 6
-	
-
-	class Estate(IntEnum):
-		STATE_FL  = 1
-		STATE_FR  = 3
-		STATE_RL  = 5
-		STATE_RR  = 7
-
-
-	class Emotor(IntEnum):
-		FL = 0
-		FR = 1
-		RL = 2
-		RR = 3
-		n = 4
 
 	def __init__(self):
 		self.positionX = 0
@@ -55,10 +27,11 @@ class Robot:
 		self.orientationZ = 0
 		self.reg = 0
 		#self.PORT = "/dev/ttyUSB0"
-		self.PORT = "/dev/ttyACM0"
+		self.PORT = "/dev/tty_ARDUINO_USB"#"/dev/ttyACM0"
 		self.ser = serial.Serial (self.PORT, 
         baudrate = 115200)
 		self.DEBUG = 1
+		self.dict = computeDict()
 
 
 	def setSerial(self,port,baudrate = 115200):
@@ -74,19 +47,23 @@ class Robot:
 			reg = self.reg.to_bytes(1,'big')
 			self.ser.write(reg)
 		except:
-			print("ERROR USB")
+			e = sys.exc_info()[0]
+			print(e)
 			if(self.ser.isOpen()):
 				self.ser.write(0)
 				self.ser.close()
 			else:
 				self.ser.open() 
 
-	def goToSelfCamera(self,targetX,targetY,offset_max_x = 15,offset_max_angle = 3):
+	def goToSelfCamera(self,targetX,targetY,offset_max_x = 5,offset_max_angle = 3):
+
+		targetY = targetY + self.offsetCenter
 		anglexy = math.degrees(math.atan(targetX / targetY )) #calcule l'angle
 		if(anglexy < 0):
 			anglexy = -(90+anglexy)
 		elif(anglexy > 0):
 			anglexy = 90-anglexy
+		print("Angle XY = " + str(anglexy))
 	
 		if(anglexy > offset_max_angle or anglexy < -offset_max_angle  ):
 			if(anglexy > 0):
@@ -98,191 +75,96 @@ class Robot:
 		else:
 			self.stopMotors()
 		self.serialWriteReg()
+		if(self.DEBUG):
+			print("Target X = " + str(targetX) + " Y = " + str(targetY) )
 		return
 
-	def goToUsingLocation(self,targetX,targetY, offset_max_distance = 20,offset_max_angle = 3):
+	def goToUsingLocation(self,targetX,targetY, offset_max_distance = 20,offset_max_angle = 10):
 		deltaX = self.positionX - targetX
 		deltaY = self.positionY - targetY
 		distance = deltaX**2 + deltaY**2
-		angleToTarget =  math.atan(deltaX/deltaY)
-		if(abs(angleToTarget) > offset_max_angle): #orientation vers target
+		print("Distance to Target = " +str(distance))
+		if (deltaY == 0):
+			deltaY = 0.01
+		angleToTarget =  math.degrees(math.atan(deltaX/deltaY)) -90
+		print("Current Angle = " + str(self.orientationZ))
+		print("Angle To Target = " + str(angleToTarget))
+		if(abs(angleToTarget - self.orientationZ) > offset_max_angle): #orientation vers target
 			if(self.orientationZ > angleToTarget):
-				self.rotationRight()
-			else:
 				self.rotationLeft()
+				print("Left")
+			else:
+				self.rotationRight()
+				print("Right")	
 		elif(distance > offset_max_distance):
 			self.goForward()
 		return distance
 
+	def goToDebugAligned(self,targetX,targetY, offset_max_distance_x = 15,offset_max_distance_y = 5):
+		deltaX = self.positionX - targetX
+		deltaY = self.positionY - targetY
+		if(deltaX > offset_max_distance_x):
+			self.goForward()
+		elif(deltaX < -offset_max_distance_x):
+			self.goBackwards()
+		elif(deltaY > offset_max_distance_y):
+			self.goLeft()
+		elif(deltaY < -offset_max_distance_y):
+			self.goRight()
+		self.serialWriteReg()
+		distance = deltaX**2 + deltaY**2
+		return distance
 
+	def debugIndivMotors(self):
+		print("Debugging Motors BRRRRRRR")
+		while(True):
+			#for motor in self.Emotor:
+			for motor in range(0,4):
+				print(motor)
+				self.reg = _set_motor(motor,0,1)
+				self.serialWriteReg()
+				time.sleep(1)
+				self.reg = _set_motor(motor,1,1)
+				self.serialWriteReg()
+				time.sleep(1)
 
-
-
-	
-
-
-
-	def _computeDict(self):
-		stop = 0
-		rotright = self.rotationRight()
-		rotleft = self.rotationLeft()
-		goforward = self.goForward()
-		goback = self.goBackwards()
-		left = self.goLeft()
-		right = self.goRight()
-		diagleft = self.diagLeft()
-		diagright = self.diagRight()
-		self.dict = {'stop' : stop, 'rotationRight' : rotright, 'rotationLeft' : rotleft,
-		'goFoward' : goforward,'goBackwards' : goback, 'goLeft' : left, 'goRight' : right,
-		'diagLeft' : diagleft, 'diagRight' : diagright}
-	
-
-
-
-	def stopMotors(self):
-		self.reg = 0
-	
-	def rotationRight(self):
-		val = 0
-		val = self.set_value(val,self.ON,self.Estate.STATE_FL)
-		val = self.set_value(val,self.ON,self.Estate.STATE_FR)
-		val = self.set_value(val,self.ON,self.Estate.STATE_RL)
-		val = self.set_value(val,self.ON,self.Estate.STATE_RR)
-
-		val = self.set_value(val,self.FORWARD,self.Edir.DIR_FL)
-		val = self.set_value(val,self.BACKWARD,self.Edir.DIR_FR)
-		val = self.set_value(val,self.FORWARD,self.Edir.DIR_RL)
-		val = self.set_value(val,self.BACKWARD,self.Edir.DIR_RR)
-		self.reg = val
-		if(self.DEBUG):
-			print("Rotation right ")
-
-	def rotationLeft(self):
-		val = 0
-		val = self.set_value(val,self.ON,self.Estate.STATE_FL)
-		val = self.set_value(val,self.ON,self.Estate.STATE_FR)
-		val = self.set_value(val,self.ON,self.Estate.STATE_RL)
-		val = self.set_value(val,self.ON,self.Estate.STATE_RR)
-
-		val = self.set_value(val,self.BACKWARD,self.Edir.DIR_FL)
-		val = self.set_value(val,self.FORWARD,self.Edir.DIR_FR)
-		val = self.set_value(val,self.BACKWARD,self.Edir.DIR_RL)
-		val = self.set_value(val,self.FORWARD,self.Edir.DIR_RR)
-		self.reg = val
-		if(self.DEBUG):
-			print("Rotation left ")
-	
+	def debugDirections(self):
+		while(True):
+			for key in self.dict:
+				self.reg = self.dict[key]
+				print(key, '->', self.dict[key])
+				self.serialWriteReg()
+				time.sleep(3)
+			
 	def goForward(self):
-		val = 0
-		val = self.set_value(val,self.ON,self.Estate.STATE_FL)
-		val = self.set_value(val,self.ON,self.Estate.STATE_FR)
-		val = self.set_value(val,self.ON,self.Estate.STATE_RL)
-		val = self.set_value(val,self.ON,self.Estate.STATE_RR)
-
-		val = self.set_value(val,self.FORWARD,self.Edir.DIR_FL)
-		val = self.set_value(val,self.FORWARD,self.Edir.DIR_FR)
-		val = self.set_value(val,self.FORWARD,self.Edir.DIR_RL)
-		val = self.set_value(val,self.FORWARD,self.Edir.DIR_RR)
-
-		self.reg = val
-		if(self.DEBUG):
-			print(" Forward ")
-
-	def goBackwards(self):
-		val = 0
-		val = self.set_value(val,self.ON,self.Estate.STATE_FL)
-		val = self.set_value(val,self.ON,self.Estate.STATE_FR)
-		val = self.set_value(val,self.ON,self.Estate.STATE_RL)
-		val = self.set_value(val,self.ON,self.Estate.STATE_RR)
-
-		val = self.set_value(val,self.BACKWARD,self.Edir.DIR_FL)
-		val = self.set_value(val,self.BACKWARD,self.Edir.DIR_FR)
-		val = self.set_value(val,self.BACKWARD,self.Edir.DIR_RL)
-		val = self.set_value(val,self.BACKWARD,self.Edir.DIR_RR)
-
-		self.reg = val
-		if(self.DEBUG):
-			print(" Backward ")
-
-
+		self.reg = self.dict['forward']
+		self.serialWriteReg()
+	def goBackward(self):
+		self.reg = self.dict['backward']
+		self.serialWriteReg()
+	def stopMotors(self):
+		self.reg = self.dict['stop']
+		self.serialWriteReg()
+	def rotationRight(self):
+		self.reg = self.dict['rotationRight']
+		self.serialWriteReg()
+	def rotationLeft(self):
+		self.reg = self.dict['rotationLeft']
+		self.serialWriteReg()
 	def goLeft(self):
-		val = 0
-		val = self.set_value(val,self.ON,self.Estate.STATE_FL)
-		val = self.set_value(val,self.ON,self.Estate.STATE_FR)
-		val = self.set_value(val,self.ON,self.Estate.STATE_RL)
-		val = self.set_value(val,self.ON,self.Estate.STATE_RR)
-
-		val = self.set_value(val,self.BACKWARD,self.Edir.DIR_FL)
-		val = self.set_value(val,self.FORWARD,self.Edir.DIR_FR)
-		val = self.set_value(val,self.FORWARD,self.Edir.DIR_RL)
-		val = self.set_value(val,self.BACKWARD,self.Edir.DIR_RR)
-		self.reg = val
-		if(self.DEBUG):
-			print(" left ")
-
+		self.reg = self.dict['left']
+		self.serialWriteReg()
 	def goRight(self):
-		val = 0
-		val = self.set_value(val,self.ON,self.Estate.STATE_FL)
-		val = self.set_value(val,self.ON,self.Estate.STATE_FR)
-		val = self.set_value(val,self.ON,self.Estate.STATE_RL)
-		val = self.set_value(val,self.ON,self.Estate.STATE_RR)
-
-		val = self.set_value(val,self.FORWARD,self.Edir.DIR_FL)
-		val = self.set_value(val,self.BACKWARD,self.Edir.DIR_FR)
-		val = self.set_value(val,self.BACKWARD,self.Edir.DIR_RL)
-		val = self.set_value(val,self.FORWARD,self.Edir.DIR_RR)
-		self.reg = val
-		if(self.DEBUG):
-			print(" right ")
-
+		self.reg = self.dict['right']
+		self.serialWriteReg()
 	def diagLeft(self):
-		val = 0
-		val = self.set_value(val,self.OFF,self.Estate.STATE_FL)
-		val = self.set_value(val,self.ON,self.Estate.STATE_FR)
-		val = self.set_value(val,self.ON,self.Estate.STATE_RL)
-		val = self.set_value(val,self.OFF,self.Estate.STATE_RR)
-
-		val = self.set_value(val,self.FORWARD,self.Edir.DIR_FR)
-		val = self.set_value(val,self.FORWARD,self.Edir.DIR_RL)
-		self.reg = val
-		if(self.DEBUG):
-			print(" diagLeft ")
-
+		self.reg = self.dict['diagLeft']
+		self.serialWriteReg()
 	def diagRight(self):
-		val = 0
-		val = self.set_value(val,self.ON,self.Estate.STATE_FL)
-		val = self.set_value(val,self.OFF,self.Estate.STATE_FR)
-		val = self.set_value(val,self.OFF,self.Estate.STATE_RL)
-		val = self.set_value(val,self.ON,self.Estate.STATE_RR)
-		
-		val = self.set_value(val,self.FORWARD,self.Edir.DIR_FL)
-		val = self.set_value(val,self.FORWARD,self.Edir.DIR_RR)
-		self.reg = val
-		if(self.DEBUG):
-			print(" diagRight ")
+		self.reg = self.dict['diagRight']
+		self.serialWriteReg()
+	def block(self):
+		self.reg = self.dict['block']
+		self.serialWriteReg()
 
-	def set_motor(self,n,dir,state): 
-		val = 0
-		if(dir):
-			val = self.set_bit(val,2*n)
-		else:
-			val = self.clear_bit(val,2*n)
-		if(state):
-			val = self.set_bit(val,2*n + 1)
-		else:
-			val = self.clear_bit(val,2*n + 1)
-		self.reg = val
-
-	def set_bit(value, bit):
-		return value | (1<<bit)
-
-	def clear_bit(value, bit):
-		return  value & ~(1<<bit)
-
-	def set_value(self,temp,value,bit):
-		if(value):
-			temp = self.set_bit(temp,bit)
-		else:
-			temp = self.clear_bit(temp,bit)
-		return temp
 

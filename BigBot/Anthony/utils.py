@@ -37,14 +37,29 @@ def computeDict():
     right = _goRight()
     diagleft = _diagLeft()
     diagright = _diagRight()
+    block = _block()
     dict = {'stop' : stop, 'rotationRight' : rotright, 'rotationLeft' : rotleft,
     'forward' : goforward,'backward' : goback, 'left' : left, 'right' : right,
-    'diagLeft' : diagleft, 'diagRight' : diagright}
+    'diagLeft' : diagleft, 'diagRight' : diagright,'block' : block}
     return dict
 
 
 def stopMotors():
     return 0
+
+def _block():
+    val = 0
+    val = set_value(val,OFF,Estate.STATE_FL)
+    val = set_value(val,OFF,Estate.STATE_FR)
+    val = set_value(val,OFF,Estate.STATE_RL)
+    val = set_value(val,OFF,Estate.STATE_RR)
+
+    val = set_value(val,FORWARD,Edir.DIR_FL)
+    val = set_value(val,FORWARD,Edir.DIR_FR)
+    val = set_value(val,FORWARD,Edir.DIR_RL)
+    val = set_value(val,FORWARD,Edir.DIR_RR)
+    print(val)
+    return val
 
 def _rotationRight():
     val = 0
@@ -166,6 +181,7 @@ def _set_motor(n,dir,state):
         val = set_bit(val,2*n + 1)
     else:
         val = clear_bit(val,2*n + 1)
+    return val
     
 
 def set_bit(value, bit):
