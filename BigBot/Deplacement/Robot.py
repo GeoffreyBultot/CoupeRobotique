@@ -4,20 +4,13 @@ import time
 import sys
 from utils import computeDict,_set_motor
 
-"""TODO 
-Serveur MQTT
-
-
-
-"""
-
 class Robot:
 	positionX = 0
 	positionY = 0
 	orientationZ = 0
 	reg = 0
 	DEBUG = 1
-	offsetCenter = 5
+	offsetCenter = 6
 
 	
 
@@ -39,9 +32,6 @@ class Robot:
 			self.ser.close()
 		self.ser = serial.Serial(port,baudrate) 
 
-
-
-
 	def serialWriteReg(self):
 		try: 
 			reg = self.reg.to_bytes(1,'big')
@@ -55,10 +45,8 @@ class Robot:
 			else:
 				self.ser.open() 
 
-	def goToSelfCamera(self,targetX,targetY,offset_max_x = 5,offset_max_angle = 3):
-
-		targetY = targetY + self.offsetCenter
-		anglexy = math.degrees(math.atan(targetX / targetY )) #calcule l'angle
+	def goToSelfCamera(self,targetX,targetY,targetAngle,offset_max_x = 8,offset_max_y = 3):
+		""" anglexy = math.degrees(math.atan(targetX / targetY )) #calcule l'angle
 		if(anglexy < 0):
 			anglexy = -(90+anglexy)
 		elif(anglexy > 0):
@@ -69,20 +57,34 @@ class Robot:
 			if(anglexy > 0):
 				self.rotationRight()
 			else:
+				self.rotationLeft() """
+
+		targetY = targetY + self.offsetCenter
+		angle = targetAngle%60
+		if(angle > 38 or angle <22):
+			if(angle >38):
+				self.rotationRight()
+			if(angle <22):
 				self.rotationLeft()
+		
+		elif(abs(targetY) > offset_max_y):
+			if(targetY < 0):
+				self.goLeft()
+			else:
+				self.goRight()
 		elif(targetX > offset_max_x):
 			self.goForward()
 		else:
 			self.stopMotors()
-		self.serialWriteReg()
 		if(self.DEBUG):
 			print("Target X = " + str(targetX) + " Y = " + str(targetY) )
-		return
+		dist = math.sqrt(targetX**2 + targetY**2)
+		return dist
 
 	def goToUsingLocation(self,targetX,targetY, offset_max_distance = 20,offset_max_angle = 10):
 		deltaX = self.positionX - targetX
 		deltaY = self.positionY - targetY
-		distance = deltaX**2 + deltaY**2
+		distance = math.sqrt(deltaX**2 + deltaY**2)
 		print("Distance to Target = " +str(distance))
 		if (deltaY == 0):
 			deltaY = 0.01
@@ -111,7 +113,6 @@ class Robot:
 			self.goLeft()
 		elif(deltaY < -offset_max_distance_y):
 			self.goRight()
-		self.serialWriteReg()
 		distance = deltaX**2 + deltaY**2
 		return distance
 

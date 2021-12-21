@@ -1,5 +1,6 @@
 #!/usr/bin/python
 from Robot import *
+from Zones_Strategy import *
 import numpy as np
 import cv2
 from picamera import PiCamera
@@ -12,12 +13,10 @@ import paho.mqtt.client as mqtt
 import time
 
 
+
 def rotationMatrixToEulerAngles(R) :
-
 	sy = math.sqrt(R[0,0] * R[0,0] +  R[1,0] * R[1,0])
-
 	singular = sy < 1e-6
-
 	if not singular :
 		x = math.atan2(R[2,1] , R[2,2])
 		y = math.atan2(-R[2,0], sy)
@@ -26,17 +25,13 @@ def rotationMatrixToEulerAngles(R) :
 		x = math.atan2(-R[1,2], R[1,1])
 		y = math.atan2(-R[2,0], sy)
 		z = 0
-
 	return np.array([math.degrees(x), math.degrees(y), math.degrees(z)])
 
-
-
 camera_matrix = np.array([[1.28799158e+03 , 0.00000000e+00, 6.53026522e+02],
- [0.00000000e+00, 1.28175352e+03, 4.68851197e+02],
- [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
+[0.00000000e+00, 1.28175352e+03, 4.68851197e+02],
+[0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
 
 distortion_coeff = np.array([[ 0.20209073, -1.26402114,0.0062418, -0.00483837,1.88582135]])
-
 angle_camera = -60
 theta_camera = math.radians(angle_camera)
 
@@ -124,8 +119,10 @@ if __name__ == '__main__':
 	client.on_message = on_message
 	client.on_connect = on_connect
 	_thread.start_new_thread( data_Thread, (1 , ) )
-
-	arrived_close = False
+	strategyTable = positionsToReach_1
+	for element in strategyTable:
+		print(dict_zones[element])
+	""" arrived_close = False
 
 	while(not arrived_close):
 		if(newMessage == True):
@@ -138,10 +135,9 @@ if __name__ == '__main__':
 				arrived_close = True
 				print("Arrived")
 				time.sleep(2)
-		
-
-
-
+	"""
+	
+""" 
 	for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
 		frame = frame_pi.array
 		frame = cv2.rotate(frame,cv2.ROTATE_180)
@@ -163,4 +159,4 @@ if __name__ == '__main__':
 
 		rawCapture.truncate(0)
 
-	cv2.destroyAllWindows()
+	cv2.destroyAllWindows() """

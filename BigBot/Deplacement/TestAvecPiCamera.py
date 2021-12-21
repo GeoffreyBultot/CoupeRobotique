@@ -42,38 +42,38 @@ def rotationMatrixToEulerAngles(R) :
 
 
 
-camera_matrix = np.array([[1.28799158e+03 , 0.00000000e+00, 6.53026522e+02],
- [0.00000000e+00, 1.28175352e+03, 4.68851197e+02],
- [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
+""" DIM=(1280, 960) #21-12
+camera_matrix=np.array([[612.6769659225217, 0.0, 573.732399040683], [0.0, 614.0511112656127, 464.15063277573313], [0.0, 0.0, 1.0]])
+distortion_coeff = np.array([[-0.027945714136134205], [-0.012776430253932694], [0.00586270163443667], [-0.0015790193010345587]]) """
 
-distortion_coeff = np.array([[ 0.20209073, -1.26402114,0.0062418, -0.00483837,1.88582135]])
+DIM=(1280, 960)
+camera_matrix=np.array([[630.932402116786, 0.0, 585.6531301759157], [0.0, 631.6869826709609, 478.8413904560236], [0.0, 0.0, 1.0]])
+distortion_coeff=np.array([[-0.06670587491284909], [0.1057157290509116], [-0.13122001638126551], [0.04714118291127774]])
 
-angle = -60
-theta = math.radians(angle)
-""" rotation_matrix = np.array([[math.cos(theta), 0 , math.sin(theta)],
-                        [0,               1,               0],
-                        [-math.sin(theta), 0, math.cos(theta)]]) rotation Y"""
+
+
+angle_camera = 35
+theta_camera = math.radians(angle_camera)
+
 rotation_matrix = np.array([[1,           0 ,                0], #rotation axe X
-[0           ,math.cos(theta),               -math.sin(theta)],
-[0,         math.sin(theta),                math.cos(theta)]]) 
+[0           ,math.cos(theta_camera),               -math.sin(theta_camera)],
+[0,         math.sin(theta_camera),                math.cos(theta_camera)]]) 
 
 
 
-#--- initialize the camera and grab a reference to the raw camera capture
 camera = PiCamera()
-#camera.rotation = 180
-camera.iso = 1600 # max ISO to force exposure time to minimum to get less motion blur
-camera.contrast = 100
-camera.resolution = (1296,976)
-#camera.vflip = True
-#camera.framerate = 30
+camera.iso = 800 # max ISO to force exposure time to minimum to get less motion blur
+camera.contrast = 0
+camera.resolution = DIM
+camera.framerate = 30
 rawCapture = PiRGBArray(camera, size=camera.resolution)
+
 
 
 
 if __name__ == '__main__':
     markerSizeInCM = 5
-    aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_250)
+    aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_100)
     parameters =  aruco.DetectorParameters_create()
     print(rotation_matrix)
 
@@ -81,6 +81,8 @@ if __name__ == '__main__':
 
     for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         frame = frame_pi.array
+        #frame = cv2.flip(frame,0)
+        #frame = cv2.flip(frame,1)
         #frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
@@ -94,7 +96,8 @@ if __name__ == '__main__':
             #print("RVEC : " + str(rvec))
             #print("Rotation : \n" + str(euleurAngle))     
             coord_xyz = np.matmul(rotation_matrix, tvec)
-            print(": XYZ " + str(coord_xyz))
+            print("Angles " + str(euleurAngle))
+            cv2.imshow("ENT",frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break

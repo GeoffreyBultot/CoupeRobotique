@@ -6,6 +6,7 @@ cap = cv2.VideoCapture(0)
 while(True):
     ret,frame = cap.read()
     frame = cv2.flip(frame,0)
+    frame = cv2.flip(frame,1)
 #    frame = cv2.imread('/home/pi/Documents/ARUCO_Reader/images/aruco.PNG')
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_1000)

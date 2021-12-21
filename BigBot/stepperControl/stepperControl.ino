@@ -8,8 +8,7 @@
 #define FL_DIR 7 
 #define FL_ENA 6 
 #define PWM_PIN 3
-
-
+#define C_BLOCKED_MOTORS_DATA 0b01010101 //Quand on veut bloquer les moteur
 #define C_N_MOTORS 4
 
 //int motors_PWM_Pins[C_N_MOTORS]  = {FL_STEP,FR_STEP,RL_STEP,RR_STEP};
@@ -72,10 +71,27 @@ void loop() {
 }
 
 void setMotor(byte motorsRegister){
-  for(int i = 0; i<C_N_MOTORS;i++){
-    bool direction = (motorsRegister>> (2*i))&0x01;
-    bool stateMotor = !((motorsRegister>>((2*i)+1))&0x01);
-    digitalWrite(motors_DIR_Pins[i],!direction);
-    digitalWrite(motors_ENA_Pins[i],stateMotor);
+  if(motorsRegister == C_BLOCKED_MOTORS_DATA){
+    analogWrite(PWM_PIN,0);
+    for(int i = 0; i<C_N_MOTORS;i++){
+      digitalWrite(motors_ENA_Pins[i],LOW);
+    }
+  }else{
+    analogWrite(PWM_PIN,127);
+    for(int i = 0; i<C_N_MOTORS;i++){
+      bool direction = (motorsRegister>> (2*i))&0x01;
+      bool stateMotor = !((motorsRegister>>((2*i)+1))&0x01);
+      digitalWrite(motors_DIR_Pins[i],!direction);
+      digitalWrite(motors_ENA_Pins[i],stateMotor);
+    }
   }
 }
+
+
+
+
+
+
+
+
+
