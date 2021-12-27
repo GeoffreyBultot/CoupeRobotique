@@ -85,16 +85,13 @@ if __name__ == '__main__':
     distance = []
     ret = []
 
-    #ser.close()
 
     for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         frame = frame_pi.array
-        #frame = cv2.flip(frame,0)
-        #frame = cv2.flip(frame,1)
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
         if ids is not None:
-            for i in range(len(ids)):
+            for i in range(len(ids)): #trouve le tag le plus proche
                 ret = aruco.estimatePoseSingleMarkers(corners[i], markerSizeInCM, camera_matrix, distortion_coeff)
                 (rvec, tvec) = (ret[0][0, 0, :], ret[1][0, 0, :])
                 distance.append(calculateDistance(tvec))
@@ -111,7 +108,7 @@ if __name__ == '__main__':
             #print(coord_xyz)
             rz = rz % 360
             print(rz)
-            distance = []
+            distance = [] #clear le tableau
             if(coord_xyz[1] > 0.5):
                 print("Steaup")
                 JeanMichelDuma.block()
