@@ -83,7 +83,7 @@ if __name__ == '__main__':
     offset_x = -.5
     offset_y = 1
     distance = []
-    ret = []
+    ret_array = []
 
 
     for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
@@ -92,12 +92,13 @@ if __name__ == '__main__':
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
         if ids is not None:
             for i in range(len(ids)): #trouve le tag le plus proche
-                ret = aruco.estimatePoseSingleMarkers(corners[i], markerSizeInCM, camera_matrix, distortion_coeff)
+                ret_array.append(aruco.estimatePoseSingleMarkers(corners[i], markerSizeInCM, camera_matrix, distortion_coeff))
+                #ret = aruco.estimatePoseSingleMarkers(corners[i], markerSizeInCM, camera_matrix, distortion_coeff)
                 (rvec, tvec) = (ret[0][0, 0, :], ret[1][0, 0, :])
                 distance.append(calculateDistance(tvec))
             min_dist = min(distance)
             index = distance.index(min_dist)
-            ret = aruco.estimatePoseSingleMarkers(corners[index], markerSizeInCM, camera_matrix, distortion_coeff) #TODO évité de calculer 2x
+            ret = ret_array[index]
             (rvec, tvec) = (ret[0][0, 0, :], ret[1][0, 0, :])
             rvec_xyz =  np.matmul(rotation_matrix, rvec)
             rotation,_ = cv2.Rodrigues(rvec_xyz)
@@ -109,6 +110,7 @@ if __name__ == '__main__':
             rz = rz % 360
             print(rz)
             distance = [] #clear le tableau
+            ret_array = []
             if(coord_xyz[1] > 0.5):
                 print("Steaup")
                 JeanMichelDuma.block()
