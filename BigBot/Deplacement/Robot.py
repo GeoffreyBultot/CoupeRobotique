@@ -2,7 +2,12 @@ import serial
 import math
 import time
 import sys
+import numpy as np
 from utils import computeDict,_set_motor
+
+#TODO
+
+
 
 #region Création objet
 
@@ -13,6 +18,7 @@ class Robot:
     reg = 0
     DEBUG = 1
     offsetCenter = 6
+    posArray = [[]]
 
     
 
@@ -27,6 +33,7 @@ class Robot:
         baudrate = 115200)
         self.DEBUG = 1
         self.dict = computeDict()
+        self.posArray = self.initArray
 
 
     def setSerial(self,port,baudrate = 115200):
@@ -131,6 +138,21 @@ class Robot:
             self.goForward()
         return distance
 
+    def approximatePos(self):
+        pass
+
+
+    def updatePos(self,posX,posY):
+        self.posArray.append([posX,posY])
+        if(len(self.posArray) > 10):
+            self.posArray.pop(0)
+            
+        
+        
+
+
+    def initArray(self):
+        pass
 
             
         
