@@ -7,34 +7,22 @@ from utils import computeDict,_set_motor
 
 #TODO
 
-
-
 #region Création objet
 
 class Robot:
-    positionX = 0
-    positionY = 0
-    orientationZ = 0
-    reg = 0
-    DEBUG = 1
     offsetCenter = 6
     posArray = [[]]
-
-    
 
     def __init__(self):
         self.positionX = 0
         self.positionY = 0
         self.orientationZ = 0
         self.reg = 0
-        #self.PORT = "/dev/ttyUSB0"
-        self.PORT = "/dev/tty_ARDUINO_USB"#"/dev/ttyACM0"
-        self.ser = serial.Serial (self.PORT, 
-        baudrate = 115200)
-        self.DEBUG = 1
+        self.PORT = "/dev/tty_ARDUINO_USB"
+        self.ser = serial.Serial (self.PORT, baudrate = 115200)
+        self.DEBUG = True
         self.dict = computeDict()
         self.posArray = self.initArray
-
 
     def setSerial(self,port,baudrate = 115200):
         if(self.ser.isOpen()):

@@ -68,11 +68,6 @@ def calculateDistance(list):
     return dist
 
 
-
-
-  
-
-
 if __name__ == '__main__':
     JeanMichelDuma = Robot()
     JeanMichelDuma.DEBUG = 0
