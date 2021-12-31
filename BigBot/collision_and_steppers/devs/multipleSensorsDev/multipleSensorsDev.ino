@@ -1,5 +1,3 @@
-#define trigPin  2   // Trigger Pin
-
 #define C_N_SENSORS         4
 #define C_PIN_SENSORS_COMM  2
 
@@ -10,13 +8,12 @@
 #define C_PIN_SENSOR_BACK   6
 
 #define C_HALF_V_SOUND      0.017
-#define C_MAXIMUM_RANGE     100.0
+#define C_MAXIMUM_RANGE     30.0
 
 #define C_FREQUENCY_REFRESH       10.0
 #define C_TIME_BETWEEN_2_SENSORS  (1/C_FREQUENCY_REFRESH)/(float)C_N_SENSORS
-
-volatile boolean time_elapsed;
-volatile float vect[] = {0,0,0,0};
+#define C_TIME_REFRESH_SENSORS_D  0.01
+volatile int duration = 0;
 volatile const int tbi_Echo_Pins[C_N_SENSORS] = {C_PIN_SENSOR_LEFT,C_PIN_SENSOR_RIGHT,C_PIN_SENSOR_FRONT,C_PIN_SENSOR_BACK};
 
 float read_distance(byte sensor_trig_pin, byte sensor_echo_pin){
@@ -32,6 +29,7 @@ float read_distance(byte sensor_trig_pin, byte sensor_echo_pin){
 
 volatile byte current_sensor = 0;  
 long t1 = 0;
+long t_last_refresh = 0;
 unsigned char uc_byteToSend = 0x00;
 
 void setup()
@@ -40,33 +38,27 @@ void setup()
   for(i=0;i<C_N_SENSORS;i++){
     pinMode(tbi_Echo_Pins[i],INPUT);
   }
-  pinMode(trigPin, OUTPUT);
+  pinMode(C_PIN_SENSORS_COMM, OUTPUT);
   Serial.begin(115200);
-  time_elapsed = false;  
 }
 
 
 
 void loop()
 {
-  if(millis()-t1 > C_TIME_BETWEEN_2_SENSORS*1000){
-    t1 = millis();
+  /*if(Serial.available()){
+    int motorsRegister = Serial.read();
+  }*/
+  if(millis()-t_last_refresh > C_TIME_BETWEEN_2_SENSORS*1000){
+    t_last_refresh = millis();
     current_sensor = (++current_sensor)%C_N_SENSORS;
-    vect[current_sensor] = read_distance(trigPin, tbi_Echo_Pins[current_sensor]);
-  }
-
-  if(current_sensor == C_N_SENSORS-1){
-    uc_byteToSend = 0x00;
-    for(int i = 0;i<C_N_SENSORS;i++){
-      if(vect[i] < C_MAXIMUM_RANGE){
-        uc_byteToSend |= 1<<i;
-      }
-      
-      /*Serial.print(" # ");
-      Serial.print(i+1);
-      Serial.print(" :");
-      Serial.println(vect[i]);*/
-    }Serial.println(uc_byteToSend,BIN);
+    duration = read_distance(C_PIN_SENSORS_COMM, tbi_Echo_Pins[current_sensor]);
+    if(duration <= C_MAXIMUM_RANGE){
+        uc_byteToSend |= 1<<current_sensor;
+    }else{
+        uc_byteToSend &=~ 1<<current_sensor;
+    }
+    Serial.write(uc_byteToSend);
   }
 }
 
