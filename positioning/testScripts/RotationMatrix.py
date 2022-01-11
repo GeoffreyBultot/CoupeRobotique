@@ -1,3 +1,4 @@
+from glob import glob
 import math
 import numpy as np
 import cv2
@@ -13,7 +14,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import time
 import math 
 import os
-
+import socket
 
 #N_tag = size
 dict_sizes = {
@@ -29,12 +30,20 @@ dict_sizes = {
 }
 
 # 50 images au labo avec une résolution de 1280x960
-
+#new camera
 DIM=(1280, 960)
+K=np.array([[621.1570691293736, 0.0, 600.2355303092088], [0.0, 619.3390978742257, 472.024070607675], [0.0, 0.0, 1.0]])
+D=np.array([[-0.010783339031079746], [0.026397062411191077], [-0.050406394553889795], [0.02369514183103941]])
+
+""" DIM=(1280, 960)
 K=np.array([[630.932402116786, 0.0, 585.6531301759157], [0.0, 631.6869826709609, 478.8413904560236], [0.0, 0.0, 1.0]])
-D=np.array([[-0.06670587491284909], [0.1057157290509116], [-0.13122001638126551], [0.04714118291127774]])
- 
-	
+D=np.array([[-0.06670587491284909], [0.1057157290509116], [-0.13122001638126551], [0.04714118291127774]]) """
+
+'''
+DIM=(1280, 960) #NEW CALIB 20/12 by Antho the GOD
+K=np.array([[636.2973331204615, 0.0, 728.8166434876724], [0.0, 632.4666494131404, 460.8562085116319], [0.0, 0.0, 1.0]])
+D=np.array([[-0.06005220364781312], [0.04832812120892501], [-0.04895075355487911], [0.017239151765319385]])
+'''
 """ DIM=(2592, 1952)
 K=np.array([[1271.6340818922563, 0.0, 1167.4678127068892], [0.0, 1267.583299646622, 938.5488313394765], [0.0, 0.0, 1.0]])
 D=np.array([[-0.08022559999087736], [0.10435020556133874], [-0.11171079602705103], [0.03853140815187616]]) """
@@ -42,21 +51,52 @@ D=np.array([[-0.08022559999087736], [0.10435020556133874], [-0.11171079602705103
 
 
 #C_IP_MQTT = "172.30.40.24"
-C_IP_MQTT = "172.30.40.34"
+#C_IP_MQTT = "172.30.40.105"
+#C_IP_MQTT = commands.getoutput('hostname -I')
+C_IP_MQTT = "raspilocalization.lan"#socket.gethostbyname(socket.gethostname())
 
-angle = 40
+rotation_y = None
+rotation_x = None
+
+tvec42=None
+rvec42=None
+
+def ComputeRotationOffteur(rvec42):
+	global rotation_x
+	global rotation_y
+	thetaX = rvec42[0]
+	thetaY = rvec42[1]
+	cosT = math.cos(thetaX)
+	sinT = math.sin(thetaX)
+	rotation_x = np.array([[1,0,0],
+						[0, cosT, -sinT],
+						[0, sinT, cosT]])
+	cosT = math.cos(thetaY)
+	sinT = math.sin(thetaY)
+		
+	rotation_y = np.array([[cosT,0,sinT],
+							[0, 1, 0],
+							[-sinT, 0, cosT]])
+
+
+angle = -130
 theta = math.radians(angle)
 cosT = math.cos(theta)
 sinT = math.sin(theta)
 #X
-rotation_matrix = np.array([[1,0,0],
+rotation_x = np.array([[1,0,0],
 						[0, cosT, -sinT],
 						[0, sinT, cosT]])
-
+rotation_y = np.array([[cosT,0,sinT],
+						[0, 1, 0],
+						[-sinT, 0, cosT]])
+rotation_z = np.array([[cosT,-sinT,0],
+						[sinT, cosT, 0],
+						[0, 0, 1]])
 
 camera = PiCamera()
 #camera.rotation = 180
-#camera.iso = 800 # max ISO to force exposure time to minimum to get less motion blur
+camera.iso = 800 # max ISO to force exposure time to minimum to get less motion blur
 camera.contrast = 0
 camera.resolution = DIM
 camera.framerate = 30
@@ -65,6 +105,19 @@ rawCapture = PiRGBArray(camera, size=camera.resolution)
 client = mqtt.Client()
 
 
+
+
+def isMineTag(tagid,tvec):
+	if(tagid in dict_sizes):
+		if(tagid == 42):
+			return True
+		elif(tvec42 is not None):
+			if(tvec[0] < tvec42[0]): #trop a gauche #TODO faire pour le cote droit
+				return False
+		else:
+			return True
+	else:
+		return False
 
 def initUndis():
 	global map1
@@ -136,7 +189,9 @@ def mqtt_pubData(ids,tvecs,rvecs):
 		marker["x"]= int(tvecs[i][0])
 		marker["y"]= -int(tvecs[i][1]) #?? because why the fuck not
 		marker["z"] = int(tvecs[i][2])
-		marker["rz"] = int(rvecs[i][1])
+		marker["rx"] = int(rvecs[i][0])
+		marker["ry"] = int(rvecs[i][1])
+		marker["rz"] = int(rvecs[i][2])
 		userdata.append(marker)
 		payload_json = json.dumps(marker)
 		client.publish("data/"+str(ids[i][0]), payload=payload_json, qos=0, retain=False)
@@ -171,67 +226,53 @@ if __name__ == '__main__':
 		if ids is not None:
 			markers_tvec = []
 			markers_rvec = []
+			markers_ids = []
 			#plt.draw()
 			#a1.cla()  
+			temp_tvecs = []
+			temp_rvecs = []
 			for i in range(0,len(ids)):
 
 				if(ids[i][0] in dict_sizes):
 					markerSizeInCM = dict_sizes[ids[i][0]]
-				else:
-					markerSizeInCM = 5
-				
-				rvec , tvec, _ = aruco.estimatePoseSingleMarkers(corners[i], markerSizeInCM, K, D)
-				
-				#a1.scatter(tvec[0][0][0],tvec[0][0][1],label = str(ids[i][0]*10))
-				tvec = np.matmul(rotation_matrix, tvec[0][0])
-				rvec =  np.matmul(rotation_matrix, rvec[0][0])
-				rotation,_ = cv2.Rodrigues(rvec)
-				rvec = rotationMatrixToEulerAngles(rotation)
+					rvec , tvec, _ = aruco.estimatePoseSingleMarkers(corners[i], markerSizeInCM, K, D)
+					tvec = (tvec[0][0])
+					rvec =  (rvec[0][0])
+					if(ids[i][0]==42):
+						#M_Calib = computeMcalibMatrix(rvec,tvec)
+						rvec42 = tvec
+						tvec42 = rvec
+					temp_tvecs.append(tvec)
+					temp_rvecs.append(rvec)
 				#print(ids[i][0])
 				#print(rvec)
 				#print(tvec)
-				#Ici on a tvec et rvec p/r à la caméra mais sur un plan normal à la table
-				markers_tvec.append( [tvec[0],tvec[1],tvec[2]])
-				markers_rvec.append( [rvec[0],rvec[1],rvec[2]])
-				#a1.scatter(tvec[0],tvec[1],label = str(ids[i][0]))
-				if(ids[i][0] == 42):
-					pass
-					#print(tvec)
-				""" if(ids[i][0] == 36):
-					print(rvec) """
-			mqtt_pubData(ids,markers_tvec,markers_rvec)
-				
-
-			'''
-			a1.legend()
-			a1.set_xlabel("x")
-			a1.set_ylabel("y")
-			a1.set_xlim(0,100)
-			a1.set_ylim(0,100)
-			plt.ion()
-			plt.show()
-			plt.pause(0.001)
-			'''
-			'''
-			if(len(ids) == 2 and len(markers_tvec) == 2 ):
-				os.system('clear')
-				dx = markers_tvec[0][0]-markers_tvec[1][0]
-				print("dx = "+str(dx))
-				dy = markers_tvec[0][1]-markers_tvec[1][1]
-				print("dy = "+str(dy))
-				dz = markers_tvec[0][1]-markers_tvec[1][1]
-				print("dz = "+str(dz))
-				print("distance ="+str(calculateDistance(dx,dy)))
-				print(ids[0][0],ids[1][0])
-				print(markers_rvec[0][2] , markers_rvec[1][2])
-				drz = markers_rvec[0][2]-markers_rvec[1][2]
-				print("diff angle = " + str(drz))
-			else:
-				print(len(ids))
-			'''
-
+			#try:
+			for i in range (0,len(temp_tvecs)):
+				tvec = temp_tvecs[i]
+				rvec = temp_rvecs[i]
+				if( isMineTag(ids[i][0],tvec)):
+					#print("tag"+str(ids[i][0])+"ok")
+					#print(M_Calib)
+					#tvec = changeReference(tvec,M_Calib)
+					tvec =  np.matmul(rotation_x, tvec)
+					markers_tvec.append( [tvec[0],tvec[1],tvec[2]])
+					rvec =  np.matmul(rotation_x, rvec)
+					rotation,_ = cv2.Rodrigues(rvec)
+					rvec = rotationMatrixToEulerAngles(rotation)
+					markers_rvec.append( [rvec[0],rvec[1],rvec[2]])
+					markers_ids.append(ids[i])
+			#print(markers_ids)
+			#print(markers_rvec)
+			#print(markers_tvec)
+			if(len(markers_ids) > 0):
+				print("pub")
+				mqtt_pubData(markers_ids,markers_tvec,markers_rvec)
+			#except:
+			#	pass
 		#cv2.imshow('Measure distance',cv2.resize(frame,(1280, 960)))
-		#cv2.imshow('Measure distance',frame)
+		cv2.imshow('Measure distance', undistort(frame))
+		cv2.imshow('NotDistored', frame)
 		rawCapture.truncate(0)
 		if cv2.waitKey(1) & 0xFF == ord('q'):
 			break
