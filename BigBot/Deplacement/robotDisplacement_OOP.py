@@ -66,7 +66,7 @@ def calculateDistance(list):
     return dist
 
 def changeXYZ(xyz):
-    temp = [-xyz[1],[xyz[0], xyz[2]]]
+    temp = [-xyz[1],xyz[0], xyz[2] ]
     return temp
 
 """ 
@@ -84,8 +84,8 @@ if __name__ == '__main__':
     aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_100)
     parameters =  aruco.DetectorParameters_create()
     print(rotation_matrix)
-    offset_x = -1.5
-    offset_y = 5
+    offset_x = 2.4
+    offset_y = 1
     distance = []
     ret_array = []
 
@@ -102,7 +102,7 @@ if __name__ == '__main__':
                 distance.append(calculateDistance(tvec))
             min_dist = min(distance)
             index = distance.index(min_dist)
-            print("Target is TAG " + str(ids[index]))
+            #print("Target is TAG " + str(ids[index]))
             ret = ret_array[index]
             (rvec, tvec) = (ret[0][0, 0, :], ret[1][0, 0, :])
             rvec_xyz =  np.matmul(rotation_matrix, rvec)
@@ -112,21 +112,21 @@ if __name__ == '__main__':
             rz = abs(euleurAngle[2])
             coord_xyz = np.matmul(rotation_matrix, tvec)
             coord_xyz = changeXYZ(coord_xyz)
-            print(coord_xyz)
+            #Cprint(coord_xyz)
             rz = rz % 360
             #print(rz)
             distance = [] #clear le tableau
             ret_array = []
-            if(coord_xyz[1] > 0.5):
+            if(coord_xyz[0] < offset_x):
                 print("Steaup")
                 JeanMichelDuma.block()
                 exit()
-            elif(-coord_xyz[0] > offset_x or abs(coord_xyz[1]) > offset_y ):
-                JeanMichelDuma.goToSelfCamera(-coord_xyz[0],coord_xyz[1],rz,offset_x,offset_y)
+            if(coord_xyz[0] > offset_x or abs(coord_xyz[1]) > offset_y ):
+                JeanMichelDuma.goToSelfCamera(coord_xyz[0],coord_xyz[1],rz,offset_x,offset_y)
             
-            else:
-                print("Not detected")
-                JeanMichelDuma.block()
+        else:
+            print("Not detected")
+            JeanMichelDuma.block()
                 
 
         rawCapture.truncate(0)

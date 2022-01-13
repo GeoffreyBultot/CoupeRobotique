@@ -69,7 +69,7 @@ camera.resolution = DIM
 camera.framerate = 30
 rawCapture = PiRGBArray(camera, size=camera.resolution)
 def changeXYZ(xyz):
-    temp = [xyz[1],[xyz[0], xyz[2]]]
+    temp = [-xyz[1],[xyz[0], xyz[2]]]
     return temp
 
 

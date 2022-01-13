@@ -21,7 +21,7 @@ x
 
 
 class Robot:
-	offsetCenter = 6
+	offsetCenter = 5.2
 	posArray = [[]]
 	def __init__(self):
 		
@@ -46,7 +46,7 @@ class Robot:
 	def serialWriteReg(self):
 		try: 
 			reg = self.reg.to_bytes(1,'big')
-			#self.ser.write(reg)
+			self.ser.write(reg)
 		except:
 			e = sys.exc_info()[0]
 			print(e)
@@ -67,34 +67,38 @@ class Robot:
 	def goToSelfCamera(self,targetX,targetY,targetAngle,offset_max_x = 8,offset_max_y = 3,offset_angle=8):
 		dist = math.sqrt(targetX**2 + targetY**2)
 		targetY = targetY + self.offsetCenter
+		print("Target ANGLE = ",targetAngle)
 		angle = targetAngle%60
 		print("Target X = " + str(targetX) + "Target Y = " + str(targetY))
 		print("Angle = " + str(angle))
+		print("Dist = ",dist)
 
-		if(dist > 30):
-			self.approachTarget(targetX,targetY)
-			#self.approachTargetUsingRotation(targetX,targetY)
+		if(dist > 40):
+			#self.approachTarget(targetX,targetY)
+			print("APPROACHING")
+			self.approachTargetUsingRotation(targetX,targetY)
 		
 		elif(angle > 30+offset_angle or angle <30 - offset_angle):
-			self.alignWithTarget(angle)
+			self.alignWithTarget(angle,offset_angle)
+			print("RECTIFYING ANGLE")
 				
 		elif(abs(targetY) > offset_max_y):
+			print("ALIGNING")
 			if(targetY < 0):
 				self.goLeft()
 			else:
 				self.goRight()
 		elif(targetX > offset_max_x):
+			print("BRRRR")
 			self.goForward()
 		else:
-			self.stopMotors()
-		if(self.DEBUG):
-			print("Target X = " + str(targetX) + " Y = " + str(targetY) )		
+			self.stopMotors()	
 		return dist
 	
 	def alignWithTarget(self,angle,offset_angle = 8):
 		if(angle >30+offset_angle):
 			self.rotationRight()
-		if(angle <30 - offset_angle):
+		elif(angle <30 - offset_angle):
 			self.rotationLeft()
 		
 	def approachTarget(self,targetX,targetY,offset_max_x = 15,offset_max_y = 3): #s'approche de la position en s'alignant d'abord en Y et puis en avançant
