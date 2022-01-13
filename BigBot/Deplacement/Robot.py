@@ -6,9 +6,18 @@ import numpy as np
 from utils import computeDict,_set_motor
 import _thread
 
-#TODO
+#TODO Calibration avec item dans le chasse neige
 
+""" 
+x
+^
+|
+|
+0----->y
+ """
 #region Création objet
+
+
 
 
 class Robot:
@@ -19,13 +28,15 @@ class Robot:
 		self.positionX = 0
 		self.positionY = 0
 		self.orientationZ = 0
+		self.offsetX = 0
+		self.offsetY = 0
 		self.reg = 0
 		self.PORT = "/dev/tty_ARDUINO_USB"
 		self.ser = serial.Serial (self.PORT, baudrate = 115200)
 		self.DEBUG = True
 		self.dict = computeDict()
 		self.posArray = self.initArray
-		_thread.start_new_thread( data_Thread, (1 , ) )
+		#_thread.start_new_thread( data_Thread, (1 , ) )
 
 	def setSerial(self,port,baudrate = 115200):
 		if(self.ser.isOpen()):
@@ -35,7 +46,7 @@ class Robot:
 	def serialWriteReg(self):
 		try: 
 			reg = self.reg.to_bytes(1,'big')
-			self.ser.write(reg)
+			#self.ser.write(reg)
 		except:
 			e = sys.exc_info()[0]
 			print(e)
@@ -44,10 +55,10 @@ class Robot:
 				self.ser.close()
 			else:
 				self.ser.open() 
-	def serial_Thread()):
+	""" def serial_Thread():
 		while True:
 			print('[DEBUG	] Start thread reading serial')
-			client.loop_forever()
+			client.loop_forever() """
 #endregion
 
 
@@ -57,7 +68,9 @@ class Robot:
 		dist = math.sqrt(targetX**2 + targetY**2)
 		targetY = targetY + self.offsetCenter
 		angle = targetAngle%60
-		
+		print("Target X = " + str(targetX) + "Target Y = " + str(targetY))
+		print("Angle = " + str(angle))
+
 		if(dist > 30):
 			self.approachTarget(targetX,targetY)
 			#self.approachTargetUsingRotation(targetX,targetY)
@@ -75,8 +88,7 @@ class Robot:
 		else:
 			self.stopMotors()
 		if(self.DEBUG):
-			print("Target X = " + str(targetX) + " Y = " + str(targetY) )
-		
+			print("Target X = " + str(targetX) + " Y = " + str(targetY) )		
 		return dist
 	
 	def alignWithTarget(self,angle,offset_angle = 8):
