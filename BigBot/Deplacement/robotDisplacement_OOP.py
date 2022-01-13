@@ -112,7 +112,7 @@ if __name__ == '__main__':
             rz = abs(euleurAngle[2])
             coord_xyz = np.matmul(rotation_matrix, tvec)
             coord_xyz = changeXYZ(coord_xyz)
-            #Cprint(coord_xyz)
+            #print(coord_xyz)
             rz = rz % 360
             #print(rz)
             distance = [] #clear le tableau

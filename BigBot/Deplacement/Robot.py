@@ -35,7 +35,7 @@ class Robot:
 		self.ser = serial.Serial (self.PORT, baudrate = 115200)
 		self.DEBUG = True
 		self.dict = computeDict()
-		self.posArray = self.initArray
+		#self.posArray = self.initArray
 		#_thread.start_new_thread( data_Thread, (1 , ) )
 
 	def setSerial(self,port,baudrate = 115200):
@@ -74,9 +74,9 @@ class Robot:
 		print("Dist = ",dist)
 
 		if(dist > 40):
-			#self.approachTarget(targetX,targetY)
+			self.approachTarget(targetX,targetY,offset_max_x,offset_max_y)
 			print("APPROACHING")
-			self.approachTargetUsingRotation(targetX,targetY)
+			#self.approachTargetUsingRotation(targetX,targetY)
 		
 		elif(angle > 30+offset_angle or angle <30 - offset_angle):
 			self.alignWithTarget(angle,offset_angle)
@@ -96,12 +96,12 @@ class Robot:
 		return dist
 	
 	def alignWithTarget(self,angle,offset_angle = 8):
-		if(angle >30+offset_angle):
+		if(angle >30+offset_angle or (angle >57 or angle < 3)):
 			self.rotationRight()
 		elif(angle <30 - offset_angle):
 			self.rotationLeft()
 		
-	def approachTarget(self,targetX,targetY,offset_max_x = 15,offset_max_y = 3): #s'approche de la position en s'alignant d'abord en Y et puis en avançant
+	def approachTarget(self,targetX,targetY,offset_max_x,offset_max_y): #s'approche de la position en s'alignant d'abord en Y et puis en avançant
 		if(abs(targetY) > offset_max_y):
 			if(targetY < 0):
 				self.goLeft()
@@ -148,22 +148,11 @@ class Robot:
 			self.goForward()
 		return distance
 
-	def approximatePos(self):
-		pass
-
 
 	def updatePos(self,posX,posY):
 		self.posArray.append([posX,posY])
 		if(len(self.posArray) > 10):
 			self.posArray.pop(0)
-			
-		
-		
-
-
-	def initArray(self):
-		pass
-
 			
 		
 	 
