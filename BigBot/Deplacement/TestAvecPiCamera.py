@@ -85,6 +85,7 @@ if __name__ == '__main__':
 
     for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         frame = frame_pi.array
+        offset_angle = 5
         #frame = cv2.flip(frame,0)
         #frame = cv2.flip(frame,1)
         #frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
@@ -97,12 +98,32 @@ if __name__ == '__main__':
             rvec_xyz =  np.matmul(rotation_matrix, rvec)
             rotation,_ = cv2.Rodrigues(rvec_xyz)
             euleurAngle = rotationMatrixToEulerAngles(rotation)
+            angle =euleurAngle[2]
+            #angle = rz %60
+            print(angle)
+            if abs(angle) > 30+offset_angle:#Normal
+                angle = abs(angle%60)
+                if(angle > 30+offset_angle): #or (angle >57 or angle < 3):
+                    print("RotateRight")
+                elif(angle <30 - offset_angle):
+                    print("RotateLeft")
+            else: #Si angle [-38 ; 38 ]
+                if angle>0:
+                    if (angle>30+offset_angle or angle<30-offset_angle):
+                        print("RotateLeft")
+                elif angle<-30-offset_angle or angle>-30+offset_angle:
+                    print("RotateRight") 
+            '''if(angle > 30+offset_angle): #or (angle >57 or angle < 3):
+                print("RotateLeft")
+            elif(angle <30 - offset_angle):
+                print("RotateRight")
+                #print("RotateLeft")'''
             #print("RVEC : " + str(rvec))
             #print("Rotation : \n" + str(euleurAngle))     
             coord_xyz = np.matmul(rotation_matrix, tvec)
             coord_xyz = changeXYZ(coord_xyz)
-            print(ids)
-            print("xyz " + str(coord_xyz))
+            #print(ids)
+            #print("xyz " + str(coord_xyz))
             cv2.imshow("ENT",frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):

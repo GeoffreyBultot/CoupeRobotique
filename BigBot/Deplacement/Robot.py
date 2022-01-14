@@ -3,7 +3,7 @@ import math
 import time
 import sys
 import numpy as np
-from utils import computeDict,_set_motor
+from .utils import computeDict,_set_motor
 import _thread
 
 #TODO Calibration avec item dans le chasse neige
@@ -23,6 +23,14 @@ x
 class Robot:
 	offsetCenter = 5.2
 	posArray = [[]]
+	dict_speed = {
+		'Very slow' : 128,
+		'Slow' : 64,
+		'Medium' : 32,
+		'Fast' : 8,
+	}
+
+
 	def __init__(self):
 		
 		self.positionX = 0
@@ -35,6 +43,7 @@ class Robot:
 		self.ser = serial.Serial (self.PORT, baudrate = 115200)
 		self.DEBUG = True
 		self.dict = computeDict()
+		self.speed = self.dict_speed['Very slow']
 		#self.posArray = self.initArray
 		#_thread.start_new_thread( data_Thread, (1 , ) )
 
@@ -45,8 +54,13 @@ class Robot:
 
 	def serialWriteReg(self):
 		try: 
-			reg = self.reg.to_bytes(1,'big')
-			self.ser.write(reg)
+			start = 123
+			reg = self.reg
+			divPWM = self.speed
+			stop = 253
+			array = [start,reg,divPWM,stop]
+			message = bytearray(array)	
+			self.ser.write(message)
 		except:
 			e = sys.exc_info()[0]
 			print(e)
@@ -68,27 +82,35 @@ class Robot:
 		dist = math.sqrt(targetX**2 + targetY**2)
 		targetY = targetY + self.offsetCenter
 		print("Target ANGLE = ",targetAngle)
-		angle = targetAngle%60
+		angle = targetAngle
+		angleOK = targetAngle%60
 		print("Target X = " + str(targetX) + "Target Y = " + str(targetY))
 		print("Angle = " + str(angle))
 		print("Dist = ",dist)
 
-		if(dist > 40):
+		if(dist > 33):
 			self.approachTarget(targetX,targetY,offset_max_x,offset_max_y)
 			print("APPROACHING")
 			#self.approachTargetUsingRotation(targetX,targetY)
 		
-		elif(angle > 30+offset_angle or angle <30 - offset_angle):
+		elif(angleOK > 30+offset_angle or angleOK <30 - offset_angle): #corrige l'angle
+			self.speed = self.dict_speed['Very slow']
 			self.alignWithTarget(angle,offset_angle)
 			print("RECTIFYING ANGLE")
 				
-		elif(abs(targetY) > offset_max_y):
+		elif(abs(targetY) > offset_max_y): #s'aligne 
 			print("ALIGNING")
+			self.speed = self.dict_speed['Slow']
 			if(targetY < 0):
 				self.goLeft()
 			else:
 				self.goRight()
 		elif(targetX > offset_max_x):
+			if(targetX > 10):
+				self.speed = self.dict_speed['Medium']
+			else:
+				self.speed = self.dict_speed['Slow']
+			
 			print("BRRRR")
 			self.goForward()
 		else:
@@ -96,24 +118,40 @@ class Robot:
 		return dist
 	
 	def alignWithTarget(self,angle,offset_angle = 8):
-		if(angle >30+offset_angle or (angle >57 or angle < 3)):
-			self.rotationRight()
-		elif(angle <30 - offset_angle):
-			self.rotationLeft()
+		if abs(angle) > 30+offset_angle:#Normal
+			angle = abs(angle%60)
+			if(angle > 30+offset_angle): #or (angle >57 or angle < 3):
+				print("RotateRight")
+				self.rotationRight()
+			elif(angle <30 - offset_angle):
+				print("RotateLeft")
+				self.rotationLeft()
+		else: #Si angle [-38 ; 38 ]
+			if angle>0:
+				if (angle>30+offset_angle or angle<30-offset_angle):
+					print("RotateLeft")
+					self.rotationLeft()
+			elif angle<-30-offset_angle or angle>-30+offset_angle:
+				print("RotateRight")
+				self.rotationRight()
+
+
 		
 	def approachTarget(self,targetX,targetY,offset_max_x,offset_max_y): #s'approche de la position en s'alignant d'abord en Y et puis en avançant
 		if(abs(targetY) > offset_max_y):
+			self.speed = self.dict_speed['Slow']
 			if(targetY < 0):
 				self.goLeft()
 			else:
 				self.goRight()
 		elif(targetX > offset_max_x):
+			self.speed = self.dict_speed['Fast']
 			self.goForward()
 		else:
 			self.stopMotors()
 		
 		
-	def approachTargetUsingRotation(self,targetX,targetY,offset_max_angle  = 6): #s'approche en utilisant le chemin le plus court
+	""" def approachTargetUsingRotation(self,targetX,targetY,offset_max_angle  = 6): #s'approche en utilisant le chemin le plus court
 		anglexy = math.degrees(math.atan(targetX / targetY )) #calcule l'angle
 		if(anglexy < 0):
 			anglexy = -(90+anglexy)
@@ -125,7 +163,7 @@ class Robot:
 			else:
 				self.rotationLeft()
 		if(self.DEBUG):
-			print("Angle XY = " + str(anglexy))
+			print("Angle XY = " + str(anglexy)) """
 
 	def goToUsingLocation(self,targetX,targetY, offset_max_distance = 20,offset_max_angle = 10):
 		deltaX = self.positionX - targetX

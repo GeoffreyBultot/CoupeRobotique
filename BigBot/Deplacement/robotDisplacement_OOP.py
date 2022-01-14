@@ -6,10 +6,7 @@ from picamera import PiCamera
 from picamera.array import PiRGBArray
 from cv2 import aruco
 import math
-import serial
-import json
-from enum import IntEnum
-import sys
+
 
 
 
@@ -109,11 +106,10 @@ if __name__ == '__main__':
             rotation,_ = cv2.Rodrigues(rvec_xyz)
             euleurAngle = rotationMatrixToEulerAngles(rotation)
             #print("Rotation : \n" + str(euleurAngle[2]))
-            rz = abs(euleurAngle[2])
+            rz = euleurAngle[2]
             coord_xyz = np.matmul(rotation_matrix, tvec)
             coord_xyz = changeXYZ(coord_xyz)
             #print(coord_xyz)
-            rz = rz % 360
             #print(rz)
             distance = [] #clear le tableau
             ret_array = []
