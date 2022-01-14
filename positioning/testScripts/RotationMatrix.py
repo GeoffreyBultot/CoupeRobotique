@@ -17,16 +17,42 @@ import os
 import socket
 
 #N_tag = size
+"""
+1: 7,
+2: 7,
+6: 7,
+7: 7,
+52: 10, #tag Réservé à l'équipe violette
+53: 10, #tag Réservé à l'équipe violette
+42: 10, #tag central
+17: 5, #face cachée - all
+47: 5, #face tresor rouge
+13: 5, #face tresor bleu
+36: 5, #face tresor vert
+"""
 dict_sizes = {
-  1: 7,
-  2: 7,
-  6: 7,
-  7: 7,
-  42: 10, #tag central
-  17: 5, #face cachée - all
-  47: 5, #face tresor rouge
-  13: 5, #face tresor bleu
-  36: 5, #face tresor vert
+	1: 7,
+2: 7,
+6: 7,
+7: 7,
+52: 10, #tag Réservé à l'équipe violette
+53: 10, #tag Réservé à l'équipe violette
+42: 10, #tag central
+17: 5, #face cachée - all
+47: 5, #face tresor rouge
+13: 5, #face tresor bleu
+36: 5, #face tresor vert
+  60: 5,
+  61: 5,
+  62: 5,
+  63: 5,
+  64: 5,
+  65: 5,
+  66: 5,
+  67: 5,
+  68: 5,
+  69: 5,
+  70: 5
 }
 
 # 50 images au labo avec une résolution de 1280x960
@@ -49,11 +75,7 @@ K=np.array([[1271.6340818922563, 0.0, 1167.4678127068892], [0.0, 1267.5832996466
 D=np.array([[-0.08022559999087736], [0.10435020556133874], [-0.11171079602705103], [0.03853140815187616]]) """
 
 
-
-#C_IP_MQTT = "172.30.40.24"
-#C_IP_MQTT = "172.30.40.105"
-#C_IP_MQTT = commands.getoutput('hostname -I')
-C_IP_MQTT = "raspilocalization.lan"#socket.gethostbyname(socket.gethostname())
+C_IP_MQTT = "172.30.40.65"#socket.gethostbyname("raspilocalization")
 
 rotation_y = None
 rotation_x = None
@@ -79,7 +101,7 @@ def ComputeRotationOffteur(rvec42):
 							[-sinT, 0, cosT]])
 
 
-angle = -130
+angle = -50
 theta = math.radians(angle)
 cosT = math.cos(theta)
 sinT = math.sin(theta)
@@ -95,31 +117,29 @@ rotation_z = np.array([[cosT,-sinT,0],
 						[0, 0, 1]])
 
 camera = PiCamera()
-#camera.rotation = 180
 camera.iso = 800 # max ISO to force exposure time to minimum to get less motion blur
-camera.contrast = 0
+#camera.contrast = 0
 camera.resolution = DIM
 camera.framerate = 30
 rawCapture = PiRGBArray(camera, size=camera.resolution)
 
 client = mqtt.Client()
 
-
-
-
 def isMineTag(tagid,tvec):
 	if(tagid in dict_sizes):
 		if(tagid == 42):
 			return True
 		elif(tvec42 is not None):
-			if(tvec[0] < tvec42[0]): #trop a gauche #TODO faire pour le cote droit
+			return True 
+			if(False): #tvec[0] < tvec42[0]): #trop a gauche #TODO faire pour le cote droit
 				return False
 		else:
 			return True
 	else:
+		print("false",str(tagid))
 		return False
 
-def initUndis():
+def initUndis(): 
 	global map1
 	global map2
 	map1, map2 = cv2.fisheye.initUndistortRectifyMap(K, D, np.eye(3), K, DIM, cv2.CV_16SC2)
@@ -157,16 +177,13 @@ def rotationMatrixToEulerAngles(R) :
 		z = 0
 	return np.array([math.degrees(x), math.degrees(y), math.degrees(z)])
 
-
-
 def data_Thread(theadID):
 	while True:
-		print('[DEBUG	] Connecting to the TTN Broker...')
+		print('[DEBUG	] Connecting to the MQTT Broker...')
 		#client.connect("192.168.0.13", 1883, 60)
-		print(client.connect(C_IP_MQTT, 1883, 60))
+		if(client.connect(C_IP_MQTT, 1883, 60) == 0):
+			print('[DEBUG	] Connected successfull to the MQTT Broker...')
 		client.loop_forever()
-
-
 
 def computeMcalibMatrix(rvec42,tvec42):
 	M_calib    = np.matrix(cv2.Rodrigues(rvec42)[0])
@@ -203,79 +220,56 @@ if __name__ == '__main__':
 	parameters =  aruco.DetectorParameters_create()
 	M_Calib = None
 	initUndis()
-	'''
-	fig = plt.figure(figsize=(4,4))
-	a1 = fig.add_subplot(111)#, projection='3d')
-	'''
-	'''
-	marker = {}
-	#marker["id"]= int(ids[i][0])
-	marker["x"]= 0
-	marker["y"]= 100
-	marker["rz"] = 90
-	payload_json = json.dumps(marker)
-	client.publish("data/togo", payload=payload_json, qos=0, retain=False)
-	'''
+
 	for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
 		t1 = time.time()
 		frame = frame_pi.array
 		gray = cv2.cvtColor((frame), cv2.COLOR_BGR2GRAY)
 		#ret,gray = cv2.threshold(gray,200,255,cv2.THRESH_BINARY) #TODO update the treshold
+		#frame = undistort(frame)
 		corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
 		frame = aruco.drawDetectedMarkers(frame, corners)
 		if ids is not None:
 			markers_tvec = []
 			markers_rvec = []
 			markers_ids = []
-			#plt.draw()
-			#a1.cla()  
 			temp_tvecs = []
 			temp_rvecs = []
 			for i in range(0,len(ids)):
-
+				
 				if(ids[i][0] in dict_sizes):
 					markerSizeInCM = dict_sizes[ids[i][0]]
 					rvec , tvec, _ = aruco.estimatePoseSingleMarkers(corners[i], markerSizeInCM, K, D)
+					frame = cv2.aruco.drawAxis(frame, K, D, rvec, tvec, 10)
 					tvec = (tvec[0][0])
 					rvec =  (rvec[0][0])
+					
 					if(ids[i][0]==42):
 						#M_Calib = computeMcalibMatrix(rvec,tvec)
 						rvec42 = tvec
 						tvec42 = rvec
 					temp_tvecs.append(tvec)
-					temp_rvecs.append(rvec)
-				#print(ids[i][0])
-				#print(rvec)
-				#print(tvec)
-			#try:
+					temp_rvecs.append(rvec)			
 			for i in range (0,len(temp_tvecs)):
 				tvec = temp_tvecs[i]
 				rvec = temp_rvecs[i]
 				if( isMineTag(ids[i][0],tvec)):
-					#print("tag"+str(ids[i][0])+"ok")
-					#print(M_Calib)
 					#tvec = changeReference(tvec,M_Calib)
 					tvec =  np.matmul(rotation_x, tvec)
-					markers_tvec.append( [tvec[0],tvec[1],tvec[2]])
 					rvec =  np.matmul(rotation_x, rvec)
+					markers_tvec.append( [tvec[0],tvec[1],tvec[2]])
 					rotation,_ = cv2.Rodrigues(rvec)
 					rvec = rotationMatrixToEulerAngles(rotation)
 					markers_rvec.append( [rvec[0],rvec[1],rvec[2]])
 					markers_ids.append(ids[i])
-			#print(markers_ids)
-			#print(markers_rvec)
-			#print(markers_tvec)
 			if(len(markers_ids) > 0):
-				print("pub")
 				mqtt_pubData(markers_ids,markers_tvec,markers_rvec)
-			#except:
-			#	pass
-		#cv2.imshow('Measure distance',cv2.resize(frame,(1280, 960)))
-		cv2.imshow('Measure distance', undistort(frame))
-		cv2.imshow('NotDistored', frame)
+			
+		#cv2.imshow('Measure distance', undistort(frame))
+		#cv2.imshow('NotDistored', frame)
 		rawCapture.truncate(0)
 		if cv2.waitKey(1) & 0xFF == ord('q'):
 			break
-		print("fps : "+str(1/(time.time()-t1)))
+		#print("fps : "+str(1/(time.time()-t1)))
 		t1 = time.time()
 cv2.destroyAllWindows()

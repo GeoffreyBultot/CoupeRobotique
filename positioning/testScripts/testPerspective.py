@@ -84,7 +84,7 @@ if __name__ == '__main__':
 			imgWithAruco = cv2.warpPerspective(im_src, h, (im_dst.shape[1], im_dst.shape[0]))
 			markerLength = 10
 			rvec, tvec, _ = cv2.aruco.estimatePoseSingleMarkers(res[0], markerLength, K, D)
-
+			
 			imgWithAruco = cv2.aruco.drawAxis(imgWithAruco, K, D, rvec, tvec, 10)
 			#cameraPose = cameraPoseFromHomography(h)
 			cv2.imshow('No homography',frame)
