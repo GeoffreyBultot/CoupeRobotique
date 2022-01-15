@@ -99,20 +99,18 @@ if __name__ == '__main__':
             rotation,_ = cv2.Rodrigues(rvec_xyz)
             euleurAngle = rotationMatrixToEulerAngles(rotation)
             angle =euleurAngle[2]
-            #angle = rz %60
-            print(angle)
-            if abs(angle) > 30+offset_angle:#Normal
-                angle = abs(angle%60)
-                if(angle > 30+offset_angle): #or (angle >57 or angle < 3):
-                    print("RotateRight")
-                elif(angle <30 - offset_angle):
+            angle = angle %360
+            angle = angle % 120
+            if(angle >= 60): #sélectionne un des 2 cote
+                if(angle > 90):
                     print("RotateLeft")
-            else: #Si angle [-38 ; 38 ]
-                if angle>0:
-                    if (angle>30+offset_angle or angle<30-offset_angle):
-                        print("RotateLeft")
-                elif angle<-30-offset_angle or angle>-30+offset_angle:
-                    print("RotateRight") 
+                else:
+                    print("RotateRight")
+            else:           #l'autre cote
+                if(angle > 30):
+                    print("RotateLeft")
+                else:
+                    print("RotateRight")
             '''if(angle > 30+offset_angle): #or (angle >57 or angle < 3):
                 print("RotateLeft")
             elif(angle <30 - offset_angle):

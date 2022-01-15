@@ -21,7 +21,6 @@ x
 
 
 class Robot:
-	offsetCenter = 5.2
 	posArray = [[]]
 	dict_speed = {
 		'Very slow' : 128,
@@ -36,8 +35,10 @@ class Robot:
 		self.positionX = 0
 		self.positionY = 0
 		self.orientationZ = 0
-		self.offsetX = 0
-		self.offsetY = 0
+		self.offsetX = 2.8
+		self.offsetY = 5.2 #la camera est 5.2cm à droite du centre du robot
+		self.deadBandY = 1
+		self.deadBandAngle = 8
 		self.reg = 0
 		self.PORT = "/dev/tty_ARDUINO_USB"
 		self.ser = serial.Serial (self.PORT, baudrate = 115200)
@@ -78,94 +79,78 @@ class Robot:
 
 #region NEW CODE
 
-	def goToSelfCamera(self,targetX,targetY,targetAngle,offset_max_x = 8,offset_max_y = 3,offset_angle=8):
-		dist = math.sqrt(targetX**2 + targetY**2)
-		targetY = targetY + self.offsetCenter
+	def goToSelfCamera(self,targetXYZ,targetAngle): #return 1 si on est arrivé, sinon 0
+		targetX = targetXYZ[0]
+		targetY = targetXYZ[1]
+		targetZ = targetXYZ[2]
+		dist = math.sqrt(targetX**2 + targetY**2 + targetZ**2)
+		targetY = targetY + self.offsetY
 		print("Target ANGLE = ",targetAngle)
-		angle = targetAngle
-		angleOK = targetAngle%60
+		angle_normalized = targetAngle%60
 		print("Target X = " + str(targetX) + "Target Y = " + str(targetY))
-		print("Angle = " + str(angle))
+		print("Angle = " + str(targetAngle))
 		print("Dist = ",dist)
 
-		if(dist > 33):
-			self.approachTarget(targetX,targetY,offset_max_x,offset_max_y)
+		if(dist > 60):
+			self.approachTarget(targetX,targetY)
 			print("APPROACHING")
-			#self.approachTargetUsingRotation(targetX,targetY)
-		
-		elif(angleOK > 30+offset_angle or angleOK <30 - offset_angle): #corrige l'angle
+
+		elif(angle_normalized > 30+self.offset_angle or angle_normalized <30 - self.offset_angle): #corrige l'angle
 			self.speed = self.dict_speed['Very slow']
-			self.alignWithTarget(angle,offset_angle)
+			self.correctAngle(targetAngle)
 			print("RECTIFYING ANGLE")
 				
-		elif(abs(targetY) > offset_max_y): #s'aligne 
+		elif(abs(targetY) > self.deadBandY): #s'aligne 
 			print("ALIGNING")
 			self.speed = self.dict_speed['Slow']
 			if(targetY < 0):
 				self.goLeft()
 			else:
 				self.goRight()
-		elif(targetX > offset_max_x):
-			if(targetX > 10):
+		elif(targetX > self.offsetX): #approche finale tout droit
+			if(targetX > 8):
 				self.speed = self.dict_speed['Medium']
 			else:
-				self.speed = self.dict_speed['Slow']
-			
+				self.speed = self.dict_speed['Slow']			
 			print("BRRRR")
 			self.goForward()
-		else:
-			self.stopMotors()	
-		return dist
+		else: #arrived
+			self.block()
+			return 1
+		return 0
 	
-	def alignWithTarget(self,angle,offset_angle = 8):
-		if abs(angle) > 30+offset_angle:#Normal
+	def correctAngle(self,angle):
+		if abs(angle) > 30+self.offset_angle:#Normal
 			angle = abs(angle%60)
-			if(angle > 30+offset_angle): #or (angle >57 or angle < 3):
+			if(angle > 30+self.offset_angle):
 				print("RotateRight")
 				self.rotationRight()
-			elif(angle <30 - offset_angle):
+			elif(angle <30 - self.offset_angle):
 				print("RotateLeft")
 				self.rotationLeft()
 		else: #Si angle [-38 ; 38 ]
 			if angle>0:
-				if (angle>30+offset_angle or angle<30-offset_angle):
+				if (angle>30+self.offset_angle or angle<30-self.offset_angle):
 					print("RotateLeft")
 					self.rotationLeft()
-			elif angle<-30-offset_angle or angle>-30+offset_angle:
+			elif (angle<-30-self.offset_angle or angle>-30+self.offset_angle):
 				print("RotateRight")
 				self.rotationRight()
 
 
 		
-	def approachTarget(self,targetX,targetY,offset_max_x,offset_max_y): #s'approche de la position en s'alignant d'abord en Y et puis en avançant
-		if(abs(targetY) > offset_max_y):
+	def approachTarget(self,targetX,targetY): #s'approche de la position en s'alignant d'abord en Y et puis en avançant
+		if(abs(targetY) > self.deadBandY):
 			self.speed = self.dict_speed['Slow']
 			if(targetY < 0):
 				self.goLeft()
 			else:
 				self.goRight()
-		elif(targetX > offset_max_x):
+		else:
 			self.speed = self.dict_speed['Fast']
 			self.goForward()
-		else:
-			self.stopMotors()
 		
-		
-	""" def approachTargetUsingRotation(self,targetX,targetY,offset_max_angle  = 6): #s'approche en utilisant le chemin le plus court
-		anglexy = math.degrees(math.atan(targetX / targetY )) #calcule l'angle
-		if(anglexy < 0):
-			anglexy = -(90+anglexy)
-		elif(anglexy > 0):
-			anglexy = 90-anglexy  
-		if(anglexy > offset_max_angle or anglexy < -offset_max_angle  ):
-			if(anglexy > 0):
-				self.rotationRight()
-			else:
-				self.rotationLeft()
-		if(self.DEBUG):
-			print("Angle XY = " + str(anglexy)) """
-
-	def goToUsingLocation(self,targetX,targetY, offset_max_distance = 20,offset_max_angle = 10):
+	def goToUsingLocation(self,targetX,targetY, offset_max_distance = 40,offset_max_angle = 10):
 		deltaX = self.positionX - targetX
 		deltaY = self.positionY - targetY
 		distance = math.sqrt(deltaX**2 + deltaY**2)

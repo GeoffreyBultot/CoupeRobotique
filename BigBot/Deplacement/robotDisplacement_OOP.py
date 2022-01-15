@@ -81,8 +81,6 @@ if __name__ == '__main__':
     aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_100)
     parameters =  aruco.DetectorParameters_create()
     print(rotation_matrix)
-    offset_x = 2.4
-    offset_y = 1
     distance = []
     ret_array = []
 
@@ -113,16 +111,11 @@ if __name__ == '__main__':
             #print(rz)
             distance = [] #clear le tableau
             ret_array = []
-            if(coord_xyz[0] < offset_x):
-                print("Steaup")
-                JeanMichelDuma.block()
-                exit()
-            if(coord_xyz[0] > offset_x or abs(coord_xyz[1]) > offset_y ):
-                JeanMichelDuma.goToSelfCamera(coord_xyz[0],coord_xyz[1],rz,offset_x,offset_y)
-            
+            if(JeanMichelDuma.goToSelfCamera(coord_xyz,rz)):
+                print("steaup")   
         else:
             print("Not detected")
-            JeanMichelDuma.block()
+            JeanMichelDuma.stopMotors()
                 
 
         rawCapture.truncate(0)
