@@ -95,7 +95,7 @@ class Robot:
 			self.approachTarget(targetX,targetY)
 			print("APPROACHING")
 
-		elif(angle_normalized > 30+self.offset_angle or angle_normalized <30 - self.offset_angle): #corrige l'angle
+		elif(angle_normalized > 30+self.deadBandAngle or angle_normalized <30 - self.deadBandAngle): #corrige l'angle
 			self.speed = self.dict_speed['Very slow']
 			self.correctAngle(targetAngle)
 			print("RECTIFYING ANGLE")
@@ -120,27 +120,27 @@ class Robot:
 		return 0
 	
 	def correctAngle(self,angle):
-		if abs(angle) > 30+self.offset_angle:#Normal
+		if abs(angle) > 30+self.deadBandAngle:#Normal
 			angle = abs(angle%60)
-			if(angle > 30+self.offset_angle):
+			if(angle > 30+self.deadBandAngle):
 				print("RotateRight")
 				self.rotationRight()
-			elif(angle <30 - self.offset_angle):
+			elif(angle <30 - self.deadBandAngle):
 				print("RotateLeft")
 				self.rotationLeft()
 		else: #Si angle [-38 ; 38 ]
 			if angle>0:
-				if (angle>30+self.offset_angle or angle<30-self.offset_angle):
+				if (angle>30+self.deadBandAngle or angle<30-self.deadBandAngle):
 					print("RotateLeft")
 					self.rotationLeft()
-			elif (angle<-30-self.offset_angle or angle>-30+self.offset_angle):
+			elif (angle<-30-self.deadBandAngle or angle>-30+self.deadBandAngle):
 				print("RotateRight")
 				self.rotationRight()
 
 
 		
 	def approachTarget(self,targetX,targetY): #s'approche de la position en s'alignant d'abord en Y et puis en avançant
-		if(abs(targetY) > self.deadBandY):
+		if(abs(targetY) > self.deadBandY + 5):
 			self.speed = self.dict_speed['Slow']
 			if(targetY < 0):
 				self.goLeft()
