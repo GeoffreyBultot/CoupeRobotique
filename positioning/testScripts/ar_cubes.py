@@ -1,6 +1,7 @@
 import cv2
 import cv2.aruco as aruco
 import numpy as np
+import cv2
 from picamera.array import PiRGBArray
 from picamera import PiCamera
 
