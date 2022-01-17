@@ -35,8 +35,9 @@ class Robot:
 		self.positionX = 0
 		self.positionY = 0
 		self.orientationZ = 0
-		self.offsetX = 2.8
-		self.offsetY = 5.2 #la camera est 5.2cm à droite du centre du robot
+		self.offsetX = 3.3
+		self.offsetY = 5.8 #la camera est 5.8cm à droite du centre du robot
+		self.offsetDistrib = 20
 		self.deadBandY = 1
 		self.deadBandAngle = 8
 		self.reg = 0
@@ -83,24 +84,24 @@ class Robot:
 		targetX = targetXYZ[0]
 		targetY = targetXYZ[1]
 		targetZ = targetXYZ[2]
-		dist = math.sqrt(targetX**2 + targetY**2 + targetZ**2)
 		targetY = targetY + self.offsetY
+		dist = math.sqrt(targetX**2 + targetY**2)# + targetZ**2)
 		print("Target ANGLE = ",targetAngle)
 		angle_normalized = targetAngle%60
 		print("Target X = " + str(targetX) + "Target Y = " + str(targetY))
 		print("Angle = " + str(targetAngle))
 		print("Dist = ",dist)
 
-		if(dist > 45):
+		if(dist > 38):
 			self.approachTarget(targetX,targetY)
 			print("APPROACHING")
 
-		elif(angle_normalized > 30+self.deadBandAngle or angle_normalized <30 - self.deadBandAngle): #corrige l'angle
+		elif((angle_normalized > 30+self.deadBandAngle or angle_normalized <30 - self.deadBandAngle) and targetX > 9): #corrige l'angle
 			self.speed = self.dict_speed['Slow']
 			self.correctAngle(targetAngle)
 			print("RECTIFYING ANGLE")
-				
-		elif(abs(targetY) > (self.deadBandY +0.1*targetX): #s'aligne 
+			
+		elif(abs(targetY) > (self.deadBandY +0.1*targetX) and targetX>5): #s'aligne 
 			print("ALIGNING")
 			self.speed = self.dict_speed['Slow']
 			if(targetY < 0):
@@ -140,7 +141,7 @@ class Robot:
 
 		
 	def approachTarget(self,targetX,targetY): #s'approche de la position en s'alignant d'abord en Y et puis en avançant
-		if(abs(targetY) > (self.deadBandY + 5 + 0.05*targetX):
+		if(abs(targetY) > (self.deadBandY + 0.4*targetX)):
 			self.speed = self.dict_speed['Medium']
 			if(targetY < 0):
 				self.goLeft()
@@ -149,6 +150,34 @@ class Robot:
 		else:
 			self.speed = self.dict_speed['Fast']
 			self.goForward()
+
+
+	def approachTargetUsingRotation(self,targetXYZ,angleTAG,offset_max_angle  = 12): #s'approche en utilisant le chemin le plus court
+		targetX = targetXYZ[0]
+		targetY = targetXYZ[1]
+		targetY = targetY + self.offsetY
+		self.speed = self.dict_speed['Slow']
+		if(targetX < 12):
+			return 1
+		anglexy = math.degrees(math.atan(targetX / targetY )) #calcule l'angle
+		if(anglexy < 0):
+			anglexy = -(90+anglexy)
+		elif(anglexy > 0):
+			anglexy = 90-anglexy  
+		print("Angle XY = " + str(anglexy))
+		if(anglexy > offset_max_angle or anglexy < -offset_max_angle  ):
+			if(anglexy > 0):
+				self.rotationRight()
+				print("RIGHT")
+			else:
+				self.rotationLeft()
+				print("Left")
+		else:
+			self.goForward()
+			print("Forward")
+		return 0
+
+			
 		
 	def goToUsingLocation(self,targetX,targetY, offset_max_distance = 40,offset_max_angle = 10):
 		deltaX = self.positionX - targetX
@@ -170,6 +199,23 @@ class Robot:
 		elif(distance > offset_max_distance):
 			self.goForward()
 		return distance
+
+
+	def goToDistributeur(self,targetX,targetY,rot):
+		if(abs(targetY) > self.deadBandY): #s'aligne 
+			print("ALIGNING")
+			self.speed = self.dict_speed['Slow']
+			if(targetY < 0):
+				self.goLeft()
+			else:
+				self.goRight()
+				return 0
+		elif(targetX > self.offsetDistrib):
+			self.speed = self.dict_speed['Slow']
+			self.goForward()
+			return 0
+		return 1
+
 
 
 	def updatePos(self,posX,posY):

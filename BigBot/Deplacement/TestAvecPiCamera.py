@@ -8,22 +8,12 @@ from cv2 import aruco
 import math
 
 
-# Checks if a matrix is a valid rotation matrix.
-def isRotationMatrix(R) :
-    Rt = np.transpose(R)
-    shouldBeIdentity = np.dot(Rt, R)
-    I = np.identity(3, dtype = R.dtype)
-    n = np.linalg.norm(I - shouldBeIdentity)
-    return n < 1e-6
-
-
 
 # Calculates rotation matrix to euler angles
 # The result is the same as MATLAB except the order
 # of the euler angles ( x and z are swapped ).
 def rotationMatrixToEulerAngles(R) :
 
-    assert(isRotationMatrix(R))
 
     sy = math.sqrt(R[0,0] * R[0,0] +  R[1,0] * R[1,0])
 
@@ -38,7 +28,7 @@ def rotationMatrixToEulerAngles(R) :
         y = math.atan2(-R[2,0], sy)
         z = 0
 
-    return np.array([math.degrees(x)%360, math.degrees(y)%360, math.degrees(z)%360])
+    return np.array([math.degrees(x), math.degrees(y), math.degrees(z)])
 
 
 
@@ -77,7 +67,7 @@ def changeXYZ(xyz):
 
 
 if __name__ == '__main__':
-    markerSizeInCM = 5
+    markerSizeInCM = 10
     aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_100)
     parameters =  aruco.DetectorParameters_create()
     print(rotation_matrix)
@@ -86,34 +76,30 @@ if __name__ == '__main__':
 
     for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         frame = frame_pi.array
-        #frame = cv2.flip(frame,0)
-        #frame = cv2.flip(frame,1)
-        #frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
-        if ids is not None:
+
+
+        if ids is not None:      
             frame = aruco.drawDetectedMarkers(frame, corners)
             ret = aruco.estimatePoseSingleMarkers(corners, markerSizeInCM, camera_matrix, distortion_coeff)	
             (rvec, tvec) = (ret[0][0, 0, :], ret[1][0, 0, :])
-            rvec_xyz =  np.matmul(rotation_matrix, rvec)
+            rvec_xyz = np.matmul(rotation_matrix, rvec)
             rotation,_ = cv2.Rodrigues(rvec_xyz)
             euleurAngle = rotationMatrixToEulerAngles(rotation)
             print(euleurAngle)
             angle =euleurAngle[2]
-            #print(angle)
-            angle = angle %360
-            angle = angle % 120
-            #print(angle)
-            #print("RVEC : " + str(rvec))
-            #print("Rotation : \n" + str(euleurAngle))     
+            rx = euleurAngle[0]%180
+            #print(rx)     
             coord_xyz = np.matmul(rotation_matrix, tvec)
             coord_xyz = changeXYZ(coord_xyz)
+            coord_xyz[1] = coord_xyz[1] + 5.2
             #print(ids)
-            #print("xyz " + str(coord_xyz))
+            print("xyz " + str(coord_xyz))
             targetX = coord_xyz[0]
             targetY = coord_xyz[1]
             targetZ = coord_xyz[2]
-            dist = math.sqrt(targetX**2 + targetY**2 + targetZ**2)
+            dist = math.sqrt(targetX**2 + targetY**2)# + targetZ**2)
             print("Dist = ", dist) 
             #cv2.imshow("ENT",frame)
 

@@ -111,8 +111,10 @@ if __name__ == '__main__':
             #print(rz)
             distance = [] #clear le tableau
             ret_array = []
-            if(JeanMichelDuma.goToSelfCamera(coord_xyz,rz)):
-                print("steaup")   
+            if(JeanMichelDuma.approachTargetUsingRotation(coord_xyz,rz)):
+                print("steaup")
+                JeanMichelDuma.stopMotors()
+                exit()
         else:
             print("Not detected")
             JeanMichelDuma.stopMotors()

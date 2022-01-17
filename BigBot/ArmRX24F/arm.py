@@ -74,7 +74,7 @@ class Arm():
     
     def setMaxTorqueId(self, uid, perc):
         max_torque = int((1023/100)*perc)
-        print(f"Setting {uid} with mov_speed {max_torque}")
+        print(f"Setting {uid} with max_torque {max_torque}")
         dxl_comm_result, dxl_error = self.packetHandler.write2ByteTxRx(self.portHandler, uid, self.ADDR_AX_MAX_TORQUE, max_torque)
         if dxl_comm_result != COMM_SUCCESS:
             print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
@@ -89,7 +89,7 @@ class Arm():
     
     def setTorqueLimit(self, uid, perc):
         torque_limit = int((1023/100)*perc)
-        print(f"Setting {uid} with mov_speed {torque_limit}")
+        print(f"Setting {uid} with torque_limit {torque_limit}")
         dxl_comm_result, dxl_error = self.packetHandler.write2ByteTxRx(self.portHandler, uid, self.ADDR_AX_TORQUE_LIMIT, torque_limit)
         if dxl_comm_result != COMM_SUCCESS:
             print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
@@ -129,8 +129,8 @@ class Arm():
 
 
     def changeIdMoveSpeed(self, uid, perc):
-        mov_speed = int((1023/100)*perc)
-        print(f"Setting {uid} with mov_speed {mov_speed}")
+        mov_speed = int(1023*(perc/100))
+        #print(f"Setting {uid} with mov_speed {mov_speed} and perc : {perc}")
         dxl_comm_result, dxl_error = self.packetHandler.write2ByteTxRx(self.portHandler, uid, self.ADDR_AX_MOVING_SPEED, mov_speed)
         if dxl_comm_result != COMM_SUCCESS:
             print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
@@ -232,12 +232,16 @@ class Arm():
 
     def setMovSpeedBeforeMoving(self, angles):
         diffAngle = []
+        currentAngles = []
         for i in range(0, self.NBR_SERVO):
             pos = self.readServoIdPos(i)
             currentAngle = pos * 0.29
+            currentAngles.append(currentAngle)
             diffAngle.append(abs(angles[i]-currentAngle))
 
         max_diff = max(diffAngle)
+
+        #print(f"Cur angle : {currentAngles} to new angle : {angles} , \nwith diff : {diffAngle} and max : {max_diff}")
         
         for i in range(0, self.NBR_SERVO):
             if diffAngle[i] == max_diff:

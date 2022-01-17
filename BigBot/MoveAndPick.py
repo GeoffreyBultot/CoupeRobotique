@@ -54,10 +54,38 @@ def changeXYZ(xyz):
     return temp
 
 
-async def grabItem():
+def isStockageFull():
+    for i in range(0, len(stockageArray)):
+        if stockageArray[i] == False:
+            return False
+    
+    return True
+
+
+async def grabItem(posElement):
     global isArmMoving
+
     isArmMoving = True
-    await grabElementGround()
+    if posElement == "GND":
+        await grabElementGround()
+
+    elif posElement == "DSTB0":
+        await setArmPosDistrib(0)
+        #SHOULD DRIVE FORWARD HERE
+        await suckAndSetArmUpDistrib()
+        #SHOULD DRIVE BACK HERE
+
+    elif posElement == "DSTB1":
+        await setArmPosDistrib(1)
+        #SHOULD DRIVE FORWARD HERE
+        await suckAndSetArmUpDistrib()
+        #SHOULD DRIVE BACK HERE
+
+    elif posElement == "DSTB2":
+        await setArmPosDistrib(2)
+        #SHOULD DRIVE FORWARD HERE
+        await suckAndSetArmUpDistrib()
+        #SHOULD DRIVE BACK HERE
 
 
 async def storeItem():
@@ -65,79 +93,91 @@ async def storeItem():
     
     await setupAfterGrab()
     for i in range(3, 0, -1):
-        if stockageEmpty[i]:
+        if not stockageArray[i]:
             await setSlotId(i)
-            stockageEmpty[i] = False
-            print("Stockage Empty :", stockageEmpty)
+            stockageArray[i] = True
+            print("stockageArray :", stockageArray)
             isArmMoving = False
-            break
+            return True
 
 
 async def loopDrivingUntilFound():
     global isArmMoving
 
-    camera = PiCamera()
-    camera.iso = 800 # max ISO to force exposure time to minimum to get less motion blur
-    camera.contrast = 0
-    camera.resolution = DIM
-    camera.framerate = 30
-    rawCapture = PiRGBArray(camera, size=camera.resolution)
+    #camera = PiCamera()
+    
     distance = []
     ret_array = []
-    for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
-        frame = frame_pi.array
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
-        if ids is not None:
-            for i in range(len(ids)): #trouve le tag le plus proche
-                ret_array.append(aruco.estimatePoseSingleMarkers(corners[i], markerSizeInCM, camera_matrix, distortion_coeff))
-                ret = ret_array[i]
+    with PiCamera() as camera:
+        camera.iso = 800 # max ISO to force exposure time to minimum to get less motion blur
+        camera.contrast = 0
+        camera.resolution = DIM
+        camera.framerate = 30
+        rawCapture = PiRGBArray(camera, size=camera.resolution)
+        for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+            frame = frame_pi.array
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
+            
+            idx_42 = np.where(ids == [42])
+
+            if(idx_42[0].size > 0):
+                ids = np.delete(ids, idx_42[0], idx_42[1])
+                corners = np.delete(corners, idx_42[0], idx_42[1])
+
+            #print("ids !", ids)
+
+            if ids is not None and ids.size > 0:
+                for i in range(len(ids)): #trouve le tag le plus proche
+                    ret_array.append(aruco.estimatePoseSingleMarkers(corners[i], markerSizeInCM, camera_matrix, distortion_coeff))
+                    ret = ret_array[i]
+                    (rvec, tvec) = (ret[0][0, 0, :], ret[1][0, 0, :])
+                    distance.append(calculateDistance(tvec))
+                #print("Distzncer brr :", distance)
+                min_dist = min(distance)
+                index = distance.index(min_dist)
+                ret = ret_array[index]
                 (rvec, tvec) = (ret[0][0, 0, :], ret[1][0, 0, :])
-                distance.append(calculateDistance(tvec))
-            min_dist = min(distance)
-            index = distance.index(min_dist)
-            ret = ret_array[index]
-            (rvec, tvec) = (ret[0][0, 0, :], ret[1][0, 0, :])
-            rvec_xyz =  np.matmul(rotation_matrix, rvec)
-            rotation,_ = cv2.Rodrigues(rvec_xyz)
-            euleurAngle = rotationMatrixToEulerAngles(rotation)
-            rz = euleurAngle[2]
-            coord_xyz = np.matmul(rotation_matrix, tvec)
-            coord_xyz = changeXYZ(coord_xyz)
-            #print(coord_xyz)
-            #print(rz)
-            distance = [] #clear le tableau
-            ret_array = []
-            if(JeanMichelDuma.goToSelfCamera(coord_xyz,rz)):
-                print("steaup")
-                camera.close()
-                return True  
-        else:
-            print("Not detected")
-            if not isArmMoving:
-                JeanMichelDuma.speed = JeanMichelDuma.dict_speed['Medium']
-                JeanMichelDuma.rotationLeft()
+                rvec_xyz =  np.matmul(rotation_matrix, rvec)
+                rotation,_ = cv2.Rodrigues(rvec_xyz)
+                euleurAngle = rotationMatrixToEulerAngles(rotation)
+                rz = euleurAngle[2]
+                coord_xyz = np.matmul(rotation_matrix, tvec)
+                coord_xyz = changeXYZ(coord_xyz)
+                #print(coord_xyz)
+                #print(rz)
+                distance = [] #clear le tableau
+                ret_array = []
+                if(JeanMichelDuma.approachTargetUsingRotation(coord_xyz,rz)):
+                    if(JeanMichelDuma.goToSelfCamera(coord_xyz,rz)):
+                        print("steaup")
+                        #camera.close()
+                        return True  
+            else:
+                print("Not detected")
+                if not isArmMoving:
+                    JeanMichelDuma.speed = JeanMichelDuma.dict_speed['Medium']
+                    JeanMichelDuma.rotationLeft()
 
-        await asyncio.sleep(0.05)
-        rawCapture.truncate(0)
+            await asyncio.sleep(0.05)
+            rawCapture.truncate(0)
 
-    cv2.destroyAllWindows()
-    
-    camera.close()
+        cv2.destroyAllWindows()
+        
+        #camera.close()
 
 async def main():
     try:
-        if not arm.isInside:
-            await hideInside()
-            arm.isInside = True
+        await hideInside()
         await loopDrivingUntilFound()
-        await grabItem()
+        await grabItem("GND")
 
-        while isCodeRunning:
+        while isCodeRunning and not isStockageFull():
             tasks = [storeItem(), loopDrivingUntilFound()]
 
-            await asyncio.wait(tasks)
-            await grabItem()
+            a, b = await asyncio.wait(tasks)
+            print(f"a : {a}, b: {b}")
+            await grabItem("GND")
 
         
     except KeyboardInterrupt:
@@ -153,6 +193,7 @@ x
 0----->y
  """
 
+team = "Y" #"P"
 isCodeRunning = True
 isArmMoving = False
 
@@ -163,7 +204,15 @@ aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_100)
 parameters =  aruco.DetectorParameters_create()
 print(rotation_matrix)
 
-stockageEmpty = [True, True, True, True]
+stockageArray = [False, False, False, False]
+
+galleryArray =  [[False, False, False, False, False],
+                [False, False, False, False, False]]
+
+galleryColor = ['B','B', 'G', 'R', 'R']
+if team == "P":
+    galleryColor.reverse()
+
 ventouse.setDefault()
 
 arm.enableTorqueAll()
@@ -174,6 +223,7 @@ arm.MAX_OVERALL_SPEED = 20
 servo = ServoStock(13, 400, GPIO.BCM)
 
 servo.setDefault()
+servo.stopPwm()
 
 if __name__ == '__main__':
     asyncio.run(main())

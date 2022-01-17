@@ -19,7 +19,7 @@ slotPositionGrab = [[65, 56, 70],
 
 async def grabElementGround():
     arm.isInside = False
-    arm.MAX_OVERALL_SPEED = 15
+    arm.MAX_OVERALL_SPEED = 25
     print("---------------\nSetting before sunct")
     arm.setServosOurAngle([13, 30, 86])
     await asyncio.sleep(0.5)
@@ -56,7 +56,7 @@ async def setArmPosDistrib(uid):
         await setOutsideFromInside()
     arm.MAX_OVERALL_SPEED = 30
 
-    print("---------------\nSetting before sunct")
+    print("---------------\nSetting before sunct Distrib")
     arm.setServosOurAngle([40, 0, 0])
     await asyncio.sleep(0.5)
     if uid == 0:
@@ -122,7 +122,7 @@ async def setSlotId(slot):
     await asyncio.sleep(0.5)
 
     arm.MAX_OVERALL_SPEED = 50
-    print("---------------\Set inside")
+    print("---------------\nSet inside")
     arm.setServosOurAngle([90, 92, 92]) #98.07, 
     await asyncio.sleep(0.5)
     arm.isInside = True
@@ -167,7 +167,7 @@ async def grabElementSlot(slot):
     await asyncio.sleep(0.5)
 
     if slot == 0:
-        arm.setServosOurAngle(slotPositionDrop[0]) 
+        arm.setServosOurAngle([52, 88, 63])
     elif slot == 1:
         arm.setServosOurAngle(slotPositionDrop[1])
     elif slot == 2:
@@ -192,27 +192,25 @@ async def grabElementSlot(slot):
     await asyncio.sleep(0.5)
 
 
-async def dropBottomGallery():
+async def setArmBotGallery():
+    arm.MAX_OVERALL_SPEED = 20
     arm.isInside = False
     arm.setServosOurAngle([-9, 50.3, -25])
     await asyncio.sleep(1)
-    await ventouse.drop()
 
+
+async def dropGallery():
+    await ventouse.drop()
     print("---------------\nSetting Inside")
-    arm.setServosOurAngle([32, 67, 80])
+    #arm.setServosOurAngle([32, 67, 80])
     await hideInside()
 
 
-async def dropTopGallery():
+async def setArmTopGallery():
+    arm.MAX_OVERALL_SPEED = 20
     arm.isInside = False
-    arm.setServosOurAngle([-30, 7.2, 29.4])
+    arm.setServosOurAngle([-30, 0, 29])
     await asyncio.sleep(1)
-    await ventouse.drop()
-
-    print("---------------\nSetting Inside")
-    arm.setServosOurAngle([32, 67, 80])
-
-    await hideInside()
 
 
 async def throw():
@@ -273,7 +271,7 @@ async def setOutsideFromInside():
     arm.isInside = False
 
 
-async def main():
+'''async def main():
     try:
         ventouse.setDefault()
 
@@ -285,10 +283,20 @@ async def main():
         servo = ServoStock(13, 400, GPIO.BCM)
 
         servo.setDefault()
+        servo.stopPwm()
 
         await asyncio.sleep(0.5)
 
-        await setArmPosDistrib(2)
+        await grabElementSlot(0)
+
+        #await setArmBotGallery()
+        await setArmTopGallery()
+
+        await asyncio.sleep(5)
+
+        await dropGallery()
+
+        await setArmPosDistrib(0)
         #Bot should drive forward util connection with el
         await asyncio.sleep(5)
 
@@ -307,4 +315,4 @@ async def main():
         if x == "O":
             arm.disableTorqueAll()
 
-asyncio.run(main())
+asyncio.run(main())'''
