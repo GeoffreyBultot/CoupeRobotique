@@ -38,7 +38,7 @@ def rotationMatrixToEulerAngles(R) :
         y = math.atan2(-R[2,0], sy)
         z = 0
 
-    return np.array([math.degrees(x), math.degrees(y), math.degrees(z)])
+    return np.array([math.degrees(x)%360, math.degrees(y)%360, math.degrees(z)%360])
 
 
 
@@ -68,8 +68,9 @@ camera.contrast = 0
 camera.resolution = DIM
 camera.framerate = 30
 rawCapture = PiRGBArray(camera, size=camera.resolution)
+
 def changeXYZ(xyz):
-    temp = [-xyz[1],[xyz[0], xyz[2]]]
+    temp = [-xyz[1],xyz[0], xyz[2]]
     return temp
 
 
@@ -85,7 +86,6 @@ if __name__ == '__main__':
 
     for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         frame = frame_pi.array
-        offset_angle = 5
         #frame = cv2.flip(frame,0)
         #frame = cv2.flip(frame,1)
         #frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
@@ -98,35 +98,28 @@ if __name__ == '__main__':
             rvec_xyz =  np.matmul(rotation_matrix, rvec)
             rotation,_ = cv2.Rodrigues(rvec_xyz)
             euleurAngle = rotationMatrixToEulerAngles(rotation)
+            print(euleurAngle)
             angle =euleurAngle[2]
+            #print(angle)
             angle = angle %360
             angle = angle % 120
-            if(angle >= 60): #sélectionne un des 2 cote
-                if(angle > 90):
-                    print("RotateLeft")
-                else:
-                    print("RotateRight")
-            else:           #l'autre cote
-                if(angle > 30):
-                    print("RotateLeft")
-                else:
-                    print("RotateRight")
-            '''if(angle > 30+offset_angle): #or (angle >57 or angle < 3):
-                print("RotateLeft")
-            elif(angle <30 - offset_angle):
-                print("RotateRight")
-                #print("RotateLeft")'''
+            #print(angle)
             #print("RVEC : " + str(rvec))
             #print("Rotation : \n" + str(euleurAngle))     
             coord_xyz = np.matmul(rotation_matrix, tvec)
             coord_xyz = changeXYZ(coord_xyz)
             #print(ids)
             #print("xyz " + str(coord_xyz))
-            cv2.imshow("ENT",frame)
+            targetX = coord_xyz[0]
+            targetY = coord_xyz[1]
+            targetZ = coord_xyz[2]
+            dist = math.sqrt(targetX**2 + targetY**2 + targetZ**2)
+            print("Dist = ", dist) 
+            #cv2.imshow("ENT",frame)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-        #cv2.imshow("LIVE FEED" ,frame)	
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+        cv2.imshow("LIVE FEED" ,frame)	
         rawCapture.truncate(0)
 
     cv2.destroyAllWindows()

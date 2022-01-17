@@ -41,7 +41,7 @@ class Arm():
 
     def __init__(self):
         self.initPortAndPacketHandler()
-        pass
+        self.isInside = True
         
     def getch():
         fd = sys.stdin.fileno()
