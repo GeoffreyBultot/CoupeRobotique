@@ -21,7 +21,7 @@ class Arm():
 
     # Default setting
     BAUDRATE                    = 57600             # Dynamixel default baudrate : 57600
-    DEVICENAME                  = '/dev/ttyUSB0'    # Check which port is being used on your controller
+    DEVICENAME                  = '/dev/tty_BRAS_ROBOT'    # Check which port is being used on your controller
                                                     # ex) Windows: "COM1"   Linux: "/dev/ttyUSB0" Mac: "/dev/tty.usbserial-*"
 
     TORQUE_ENABLE               = 1                 # Value for enabling the torque
@@ -260,7 +260,8 @@ class Arm():
 
     def setServoToXYWithAngle(self, x, y, phi):
         angles = returnAngleFromXYAndAngle(x, y, phi)
-
+        print("Angle from XYZ :", angles)
+        time.sleep(20)
         self.setServosOurAngle(angles)
 
 

@@ -7,16 +7,10 @@ l2 = 5.2
 l3 = 9.6
 
 def returnAngleFromXYAndAngle(px, py, phi):
-    '''px = -15
-    py = 5.895+3.1
-    phi = 180'''
-
     offsetVentouse = 2.3442
 
     offsetX = offsetVentouse*sin(radians(phi))
-    print("offsetX :", offsetX)
     offsetY = offsetVentouse*cos(radians(phi))
-    print("offsetY :", offsetY)
 
     px += offsetX
     py -= offsetY
@@ -42,15 +36,15 @@ def returnAngleFromXYAndAngle(px, py, phi):
     dtheta_2 = round(degrees(theta_2), 2)
     dtheta_3 = round(degrees(theta_3), 2)
 
-    print('Calc theta_1:', dtheta_1)
+    '''print('Calc theta_1:', dtheta_1)
     print('Calc theta_2:', dtheta_2)
     print('Calc theta_3:', dtheta_3)
-    print('Total theta :', dtheta_1 + dtheta_2 + dtheta_3)
+    print('Total theta :', dtheta_1 + dtheta_2 + dtheta_3)'''
 
     return [dtheta_1, dtheta_2, dtheta_3]
 
-    '''
-    print("")
+    
+    '''print("")
     print('Serv theta_1:', 240- dtheta_1)
     print('Serv theta_2:', 150+ dtheta_2)
     print('Serv theta_3:', 150- dtheta_3)

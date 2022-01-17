@@ -2,8 +2,11 @@ import time
 import picamera
 import numpy as np
 import cv2
+from picamera.array import PiRGBArray
+from picamera import PiCamera
 #vid = cv2.VideoCapture(0)
 #camera = picamera.PiCamera()
+DIM=(1280, 960)
 
 
 CHECKERBOARD = (6,9)
@@ -15,33 +18,37 @@ _img_shape = None
 objpoints = [] # 3d point in real world space
 imgpoints = [] # 2d points in image plane.
 
-for i in range(40,50):
-	with picamera.PiCamera() as camera:
-		#camera.resolution = (3280, 2464)
-		#camera.resolution = (2592, 1944)
-		camera.resolution = (1280, 960)#camera.iso = 800
-		strf = './imagesCali_1280_960/image_'+str(i)+'.png'
-		camera.capture(strf)
-		cv2.imshow(str(i), cv2.imread(strf))
-		print(i)
-		#time.sleep(1)
-		cv2.destroyAllWindows()
-		'''
-		img = cv2.imread(strf)
-		if _img_shape == None:
-			_img_shape = img.shape[:2]
-		else:
-			assert _img_shape == img.shape[:2], "All images must share the same size."
-		gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-		# Find the chess board corners
-		ret, corners = cv2.findChessboardCorners(gray, CHECKERBOARD, cv2.CALIB_CB_ADAPTIVE_THRESH+cv2.CALIB_CB_FAST_CHECK+cv2.CALIB_CB_NORMALIZE_IMAGE)
-		# If found, add object points, image points (after refining them)
-		print(i)
-		if ret == True:
-			print("ok")
-			objpoints.append(objp)
-			cv2.cornerSubPix(gray,corners,(3,3),(-1,-1),subpix_criteria)
-			imgpoints.append(corners)
-		else:
-			print("nok")
-		'''
+
+
+camera = PiCamera()
+#camera.rotation = 180
+#camera.iso = 800 # max ISO to force exposure time to minimum to get less motion blur
+#camera.contrast = 0
+camera.resolution = DIM
+camera.framerate = 30
+rawCapture = PiRGBArray(camera, size=camera.resolution)
+
+i = 0
+for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+	frame = frame_pi.array
+	gray = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
+	# Find the chess board corners
+	ret, corners = cv2.findChessboardCorners(gray, CHECKERBOARD, cv2.CALIB_CB_ADAPTIVE_THRESH+cv2.CALIB_CB_FAST_CHECK+cv2.CALIB_CB_NORMALIZE_IMAGE)
+	# If found, add object points, image points (after refining them)
+	print(i)
+	if ret == True:
+		print("ok")
+		i = i+1
+		strf = '/home/pi/Documents/Calibration/17_01/'+str(i)+'.png'
+		cv2.imwrite(strf,frame)
+		cv2.imshow("captured",frame)
+		if cv2.waitKey(0) & 0xFF == ord('q'):
+			cv2.destroyAllWindows()
+		objpoints.append(objp)
+		cv2.cornerSubPix(gray,corners,(3,3),(-1,-1),subpix_criteria)
+		imgpoints.append(corners)
+		if(i==30):
+			exit(0)
+	else:
+		print("nok")
+	rawCapture.truncate(0)

@@ -6,10 +6,7 @@ from picamera import PiCamera
 from picamera.array import PiRGBArray
 from cv2 import aruco
 import math
-import serial
-import json
-from enum import IntEnum
-import sys
+
 
 
 
@@ -33,9 +30,7 @@ def rotationMatrixToEulerAngles(R) :
 
     return np.array([math.degrees(x), math.degrees(y), math.degrees(z)])
 
-""" DIM=(1280, 960)
-K=np.array([[630.932402116786, 0.0, 585.6531301759157], [0.0, 631.6869826709609, 478.8413904560236], [0.0, 0.0, 1.0]])
-D=np.array([[-0.06670587491284909], [0.1057157290509116], [-0.13122001638126551], [0.04714118291127774]]) """
+
 
 
 DIM=(1280, 960)
@@ -44,7 +39,7 @@ distortion_coeff=np.array([[-0.06670587491284909], [0.1057157290509116], [-0.131
 
 
 
-angle_camera = 35
+angle_camera = 30
 theta_camera = math.radians(angle_camera)
 
 rotation_matrix = np.array([[1,           0 ,                0], #rotation axe X
@@ -67,6 +62,17 @@ def calculateDistance(list):
     dist = math.sqrt(dist)
     return dist
 
+def changeXYZ(xyz):
+    temp = [-xyz[1],xyz[0], xyz[2] ]
+    return temp
+
+""" 
+x
+^
+|
+|
+0----->y
+ """
 
 if __name__ == '__main__':
     JeanMichelDuma = Robot()
@@ -75,8 +81,6 @@ if __name__ == '__main__':
     aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_100)
     parameters =  aruco.DetectorParameters_create()
     print(rotation_matrix)
-    offset_x = -.5
-    offset_y = 1
     distance = []
     ret_array = []
 
@@ -88,35 +92,30 @@ if __name__ == '__main__':
         if ids is not None:
             for i in range(len(ids)): #trouve le tag le plus proche
                 ret_array.append(aruco.estimatePoseSingleMarkers(corners[i], markerSizeInCM, camera_matrix, distortion_coeff))
-                #ret = aruco.estimatePoseSingleMarkers(corners[i], markerSizeInCM, camera_matrix, distortion_coeff)
+                ret = ret_array[i]
                 (rvec, tvec) = (ret[0][0, 0, :], ret[1][0, 0, :])
                 distance.append(calculateDistance(tvec))
             min_dist = min(distance)
             index = distance.index(min_dist)
+            #print("Target is TAG " + str(ids[index]))
             ret = ret_array[index]
             (rvec, tvec) = (ret[0][0, 0, :], ret[1][0, 0, :])
             rvec_xyz =  np.matmul(rotation_matrix, rvec)
             rotation,_ = cv2.Rodrigues(rvec_xyz)
             euleurAngle = rotationMatrixToEulerAngles(rotation)
             #print("Rotation : \n" + str(euleurAngle[2]))
-            rz = abs(euleurAngle[2])
+            rz = euleurAngle[2]
             coord_xyz = np.matmul(rotation_matrix, tvec)
+            coord_xyz = changeXYZ(coord_xyz)
             #print(coord_xyz)
-            rz = rz % 360
-            print(rz)
+            #print(rz)
             distance = [] #clear le tableau
             ret_array = []
-            if(coord_xyz[1] > 0.5):
-                print("Steaup")
-                JeanMichelDuma.block()
-                exit()
-            elif(-coord_xyz[1] > offset_x or abs(coord_xyz[0]) > offset_y ):
-                JeanMichelDuma.goToSelfCamera(-coord_xyz[1],coord_xyz[0],rz,offset_x,offset_y)
-                #print("Distance to target = " + str(distance))
-            
-            else:
-                print("Not detected")
-                JeanMichelDuma.block()
+            if(JeanMichelDuma.goToSelfCamera(coord_xyz,rz)):
+                print("steaup")   
+        else:
+            print("Not detected")
+            JeanMichelDuma.stopMotors()
                 
 
         rawCapture.truncate(0)

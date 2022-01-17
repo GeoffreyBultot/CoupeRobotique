@@ -46,13 +46,14 @@ def rotationMatrixToEulerAngles(R) :
 camera_matrix=np.array([[612.6769659225217, 0.0, 573.732399040683], [0.0, 614.0511112656127, 464.15063277573313], [0.0, 0.0, 1.0]])
 distortion_coeff = np.array([[-0.027945714136134205], [-0.012776430253932694], [0.00586270163443667], [-0.0015790193010345587]]) """
 
+
 DIM=(1280, 960)
 camera_matrix=np.array([[630.932402116786, 0.0, 585.6531301759157], [0.0, 631.6869826709609, 478.8413904560236], [0.0, 0.0, 1.0]])
 distortion_coeff=np.array([[-0.06670587491284909], [0.1057157290509116], [-0.13122001638126551], [0.04714118291127774]])
 
 
 
-angle_camera = 35
+angle_camera = 30
 theta_camera = math.radians(angle_camera)
 
 rotation_matrix = np.array([[1,           0 ,                0], #rotation axe X
@@ -67,6 +68,9 @@ camera.contrast = 0
 camera.resolution = DIM
 camera.framerate = 30
 rawCapture = PiRGBArray(camera, size=camera.resolution)
+def changeXYZ(xyz):
+    temp = [-xyz[1],[xyz[0], xyz[2]]]
+    return temp
 
 
 
@@ -81,6 +85,7 @@ if __name__ == '__main__':
 
     for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         frame = frame_pi.array
+        offset_angle = 5
         #frame = cv2.flip(frame,0)
         #frame = cv2.flip(frame,1)
         #frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
@@ -93,10 +98,30 @@ if __name__ == '__main__':
             rvec_xyz =  np.matmul(rotation_matrix, rvec)
             rotation,_ = cv2.Rodrigues(rvec_xyz)
             euleurAngle = rotationMatrixToEulerAngles(rotation)
+            angle =euleurAngle[2]
+            angle = angle %360
+            angle = angle % 120
+            if(angle >= 60): #sélectionne un des 2 cote
+                if(angle > 90):
+                    print("RotateLeft")
+                else:
+                    print("RotateRight")
+            else:           #l'autre cote
+                if(angle > 30):
+                    print("RotateLeft")
+                else:
+                    print("RotateRight")
+            '''if(angle > 30+offset_angle): #or (angle >57 or angle < 3):
+                print("RotateLeft")
+            elif(angle <30 - offset_angle):
+                print("RotateRight")
+                #print("RotateLeft")'''
             #print("RVEC : " + str(rvec))
             #print("Rotation : \n" + str(euleurAngle))     
             coord_xyz = np.matmul(rotation_matrix, tvec)
-            print("Angles " + str(euleurAngle))
+            coord_xyz = changeXYZ(coord_xyz)
+            #print(ids)
+            #print("xyz " + str(coord_xyz))
             cv2.imshow("ENT",frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):

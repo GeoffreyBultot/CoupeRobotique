@@ -3,29 +3,50 @@ import math
 import time
 import sys
 import numpy as np
-from utils import computeDict,_set_motor
+from .utils import computeDict,_set_motor
 import _thread
 
-#TODO
+#TODO Calibration avec item dans le chasse neige
 
+""" 
+x
+^
+|
+|
+0----->y
+ """
 #region Création objet
 
 
+
+
 class Robot:
-	offsetCenter = 6
 	posArray = [[]]
+	dict_speed = {
+		'Very slow' : 128,
+		'Slow' : 64,
+		'Medium' : 32,
+		'Fast' : 8,
+	}
+
+
 	def __init__(self):
 		
 		self.positionX = 0
 		self.positionY = 0
 		self.orientationZ = 0
+		self.offsetX = 2.8
+		self.offsetY = 5.2 #la camera est 5.2cm à droite du centre du robot
+		self.deadBandY = 1
+		self.deadBandAngle = 8
 		self.reg = 0
 		self.PORT = "/dev/tty_ARDUINO_USB"
 		self.ser = serial.Serial (self.PORT, baudrate = 115200)
 		self.DEBUG = True
 		self.dict = computeDict()
-		self.posArray = self.initArray
-		_thread.start_new_thread( data_Thread, (1 , ) )
+		self.speed = self.dict_speed['Very slow']
+		#self.posArray = self.initArray
+		#_thread.start_new_thread( data_Thread, (1 , ) )
 
 	def setSerial(self,port,baudrate = 115200):
 		if(self.ser.isOpen()):
@@ -34,8 +55,13 @@ class Robot:
 
 	def serialWriteReg(self):
 		try: 
-			reg = self.reg.to_bytes(1,'big')
-			self.ser.write(reg)
+			start = 123
+			reg = self.reg
+			divPWM = self.speed
+			stop = 253
+			array = [start,reg,divPWM,stop]
+			message = bytearray(array)	
+			self.ser.write(message)
 		except:
 			e = sys.exc_info()[0]
 			print(e)
@@ -44,74 +70,87 @@ class Robot:
 				self.ser.close()
 			else:
 				self.ser.open() 
-	def serial_Thread()):
+	""" def serial_Thread():
 		while True:
 			print('[DEBUG	] Start thread reading serial')
-			client.loop_forever()
+			client.loop_forever() """
 #endregion
 
 
 #region NEW CODE
 
-	def goToSelfCamera(self,targetX,targetY,targetAngle,offset_max_x = 8,offset_max_y = 3,offset_angle=8):
-		dist = math.sqrt(targetX**2 + targetY**2)
-		targetY = targetY + self.offsetCenter
-		angle = targetAngle%60
-		
-		if(dist > 30):
-			self.approachTarget(targetX,targetY)
-			#self.approachTargetUsingRotation(targetX,targetY)
-		
-		elif(angle > 30+offset_angle or angle <30 - offset_angle):
-			self.alignWithTarget(angle)
-				
-		elif(abs(targetY) > offset_max_y):
-			if(targetY < 0):
-				self.goLeft()
-			else:
-				self.goRight()
-		elif(targetX > offset_max_x):
-			self.goForward()
-		else:
-			self.stopMotors()
-		if(self.DEBUG):
-			print("Target X = " + str(targetX) + " Y = " + str(targetY) )
-		
-		return dist
-	
-	def alignWithTarget(self,angle,offset_angle = 8):
-		if(angle >30+offset_angle):
-			self.rotationRight()
-		if(angle <30 - offset_angle):
-			self.rotationLeft()
-		
-	def approachTarget(self,targetX,targetY,offset_max_x = 15,offset_max_y = 3): #s'approche de la position en s'alignant d'abord en Y et puis en avançant
-		if(abs(targetY) > offset_max_y):
-			if(targetY < 0):
-				self.goLeft()
-			else:
-				self.goRight()
-		elif(targetX > offset_max_x):
-			self.goForward()
-		else:
-			self.stopMotors()
-		
-		
-	def approachTargetUsingRotation(self,targetX,targetY,offset_max_angle  = 6): #s'approche en utilisant le chemin le plus court
-		anglexy = math.degrees(math.atan(targetX / targetY )) #calcule l'angle
-		if(anglexy < 0):
-			anglexy = -(90+anglexy)
-		elif(anglexy > 0):
-			anglexy = 90-anglexy  
-		if(anglexy > offset_max_angle or anglexy < -offset_max_angle  ):
-			if(anglexy > 0):
-				self.rotationRight()
-			else:
-				self.rotationLeft()
-		if(self.DEBUG):
-			print("Angle XY = " + str(anglexy))
+	def goToSelfCamera(self,targetXYZ,targetAngle): #return 1 si on est arrivé, sinon 0
+		targetX = targetXYZ[0]
+		targetY = targetXYZ[1]
+		targetZ = targetXYZ[2]
+		dist = math.sqrt(targetX**2 + targetY**2 + targetZ**2)
+		targetY = targetY + self.offsetY
+		print("Target ANGLE = ",targetAngle)
+		angle_normalized = targetAngle%60
+		print("Target X = " + str(targetX) + "Target Y = " + str(targetY))
+		print("Angle = " + str(targetAngle))
+		print("Dist = ",dist)
 
-	def goToUsingLocation(self,targetX,targetY, offset_max_distance = 20,offset_max_angle = 10):
+		if(dist > 60):
+			self.approachTarget(targetX,targetY)
+			print("APPROACHING")
+
+		elif(angle_normalized > 30+self.deadBandAngle or angle_normalized <30 - self.deadBandAngle): #corrige l'angle
+			self.speed = self.dict_speed['Very slow']
+			self.correctAngle(targetAngle)
+			print("RECTIFYING ANGLE")
+				
+		elif(abs(targetY) > self.deadBandY): #s'aligne 
+			print("ALIGNING")
+			self.speed = self.dict_speed['Slow']
+			if(targetY < 0):
+				self.goLeft()
+			else:
+				self.goRight()
+		elif(targetX > self.offsetX): #approche finale tout droit
+			if(targetX > 8):
+				self.speed = self.dict_speed['Medium']
+			else:
+				self.speed = self.dict_speed['Slow']			
+			print("BRRRR")
+			self.goForward()
+		else: #arrived
+			self.block()
+			return 1
+		return 0
+	
+	def correctAngle(self,angle):
+		if abs(angle) > 30+self.deadBandAngle:#Normal
+			angle = abs(angle%60)
+			if(angle > 30+self.deadBandAngle):
+				print("RotateRight")
+				self.rotationRight()
+			elif(angle <30 - self.deadBandAngle):
+				print("RotateLeft")
+				self.rotationLeft()
+		else: #Si angle [-38 ; 38 ]
+			if angle>0:
+				if (angle>30+self.deadBandAngle or angle<30-self.deadBandAngle):
+					print("RotateLeft")
+					self.rotationLeft()
+			elif (angle<-30-self.deadBandAngle or angle>-30+self.deadBandAngle):
+				print("RotateRight")
+				self.rotationRight()
+
+
+		
+	def approachTarget(self,targetX,targetY): #s'approche de la position en s'alignant d'abord en Y et puis en avançant
+		if(abs(targetY) > self.deadBandY + 5):
+			self.speed = self.dict_speed['Slow']
+			if(targetY < 0):
+				self.goLeft()
+			else:
+				self.goRight()
+		else:
+			self.speed = self.dict_speed['Fast']
+			self.goForward()
+		
+	def goToUsingLocation(self,targetX,targetY, offset_max_distance = 40,offset_max_angle = 10):
 		deltaX = self.positionX - targetX
 		deltaY = self.positionY - targetY
 		distance = math.sqrt(deltaX**2 + deltaY**2)
@@ -132,22 +171,11 @@ class Robot:
 			self.goForward()
 		return distance
 
-	def approximatePos(self):
-		pass
-
 
 	def updatePos(self,posX,posY):
 		self.posArray.append([posX,posY])
 		if(len(self.posArray) > 10):
 			self.posArray.pop(0)
-			
-		
-		
-
-
-	def initArray(self):
-		pass
-
 			
 		
 	 
