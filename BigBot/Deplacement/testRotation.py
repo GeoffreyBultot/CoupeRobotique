@@ -35,7 +35,7 @@ def on_message(client, userdata, message):
         JeanMichelDuma.positionX = msg["x"]
         JeanMichelDuma.positionY = msg["y"]
         JeanMichelDuma.orientationZ = msg["rz"]
-        print("X Y RZ + " + str(msg["x"]) +  str(msg["y"]) +  str(msg["rz"]))
+        #print("X Y RZ + " + str(msg["x"]) +  str(msg["y"]) +  str(msg["rz"]))
 
 C_IP_MQTT = "172.30.40.68"
 client = mqtt.Client()
@@ -44,7 +44,6 @@ client.on_connect = on_connect
 def data_Thread(theadID):
     while True:
         print('[DEBUG	] Connecting to the TTN Broker...')
-        #client.connect("192.168.0.13", 1883, 60)
         print(client.connect(C_IP_MQTT, 1883, 60))
         client.loop_forever()
 
@@ -63,17 +62,20 @@ if __name__ == '__main__':
     print("[DEBUG	] Thread MQTT Started")
     client.on_connect = on_connect
     client.on_message = on_message
-    JeanMichelDuma.speed = JeanMichelDuma.dict_speed['Medium']
+    JeanMichelDuma.speed = JeanMichelDuma.dict_speed['Slow']
     while(True):
         try:
-            if(JeanMichelDuma.setOrientation(5)):
+            #if(JeanMichelDuma.setOrientation(340)): test la rotation
+            if(JeanMichelDuma.goToUsingLocation(105,150)):
                 print("steaup")
                 JeanMichelDuma.stopMotors()
                 exit()
             else:
                 pass
+                #time.sleep(0.15)#
                 #print("Not detected")
                 #JeanMichelDuma.stopMotors()
         except:
+            JeanMichelDuma.stopMotors()
             exit()
 

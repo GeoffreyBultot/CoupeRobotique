@@ -4,7 +4,6 @@ import time
 import sys
 import numpy as np
 from utils import computeDict,_set_motor,getDistance
-import _thread
 
 #TODO Calibration avec item dans le chasse neige
 
@@ -36,7 +35,7 @@ class Robot:
         self.positionY = 0
         self.orientationZ = 90
         self.offsetX = 1.9
-        self.offsetY = 5.5 #la camera est 7.2cm à droite du centre du robot
+        self.offsetY = 5.5 #la camera est 5.5cm à droite du centre du robot
         self.offsetDistrib = 20
         self.deadBandY = 1
         self.deadBandAngle = 8
@@ -56,10 +55,10 @@ class Robot:
 
     def serialWriteReg(self):
         try: 
-            start = 123
+            start = 123 #start byte
             reg = self.reg
             divPWM = self.speed
-            stop = 253
+            stop = 253 #steaupent byte
             array = [start,reg,divPWM,stop]
             message = bytearray(array)	
             self.ser.write(message)
@@ -183,27 +182,27 @@ class Robot:
 
             
         
-    def goToUsingLocation(self,targetX,targetY, offset_max_distance = 10,offset_max_angle = 10):
-        self.speed = self.dict_speed['Medium']
+    def goToUsingLocation(self,targetX,targetY, offset_max_distance = 5,offset_max_angle = 10): #TODO translater quand on est aligné
         deltaX = self.positionX - targetX
         deltaY = self.positionY - targetY
         distance = math.sqrt(deltaX**2 + deltaY**2)
         print("Distance to Target = " +str(distance))
-        if (deltaY == 0):
-            deltaY = 0.01
-        angleToTarget =  math.degrees(math.atan(deltaX/deltaY)) -90
+        if (deltaX == 0):
+            deltaX = 0.01
+        if (deltaY > 0):
+            angleToTarget =  math.degrees(math.atan(deltaY/deltaX)) +90
+        else:
+            angleToTarget =  (math.degrees(math.atan(deltaY/deltaX)) +270)
         print("Current Angle = " + str(self.orientationZ))
         print("Angle To Target = " + str(angleToTarget))
-        if(abs(angleToTarget - self.orientationZ) > offset_max_angle): #orientation vers target
-            if(self.orientationZ > angleToTarget):
-                self.rotationLeft()
-                print("Left")
-            else:
-                self.rotationRight()
-                print("Right")	
-        elif(distance > offset_max_distance):
-            self.goForward()
-        return distance
+        print("Current pos X,Y = " + str(self.positionX) + " , " + str(self.positionY))
+        if(distance > offset_max_distance):
+            if(self.setOrientation(angleToTarget)): #si ça return 1 c'est que la rotation est OK
+                self.speed = self.dict_speed['Medium']
+                print("Forward")
+                self.goForward()
+            return 0
+        return 1
 
 
     def goToDistributeur(self,targetX,targetY,rot):
@@ -222,29 +221,19 @@ class Robot:
         return 1
 
     def setOrientation(self,angleToReach):
-        offset_max_angle = 5
-        print(self.orientationZ)
-        if(self.orientationZ > angleToReach):
-            angleToAchieve = (angleToReach- self.orientationZ)%180
-            sens = "Right"
-        else:
-            angleToAchieve = (self.orientationZ- angleToReach)%180
-            sens = "Left"
-
-        if(angleToAchieve > offset_max_angle):
-            if(sens == "Left"):
-                self.rotationLeft()
-            else:
+        self.speed = self.dict_speed['Slow']
+        offset_max_angle = 15
+        angleToAchieve = ((angleToReach-self.orientationZ +540)%360)-180  #https://math.stackexchange.com/questions/110080/shortest-way-to-achieve-target-angle/2898118)
+        if(abs(angleToAchieve) > offset_max_angle):
+            if(angleToAchieve  > 0):
                 self.rotationRight()
-            print(sens)
+                print("right")      
+            else:
+                self.rotationLeft()
+                print("left")
             return 0
         return 1
 
-
-    def updatePos(self,posX,posY):
-        self.posArray.append([posX,posY])
-        if(len(self.posArray) > 10):
-            self.posArray.pop(0)
             
         
      

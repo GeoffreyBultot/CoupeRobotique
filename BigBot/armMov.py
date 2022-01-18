@@ -230,7 +230,7 @@ async def throw():
 
 
 async def flex():
-    arm.MAX_OVERALL_SPEED = 40
+    arm.MAX_OVERALL_SPEED = 100
     arm.setServosOurAngle([0,0,0])
     await asyncio.sleep(0.1)
     arm.setServosOurAngle([0,-45,0])
@@ -273,8 +273,7 @@ async def setOutsideFromInside():
 
 async def main():
     try:
-        arm.setServosOurAngle([0,0,0])
-        '''ventouse.setDefault()
+        ventouse.setDefault()
 
         arm.enableTorqueAll()
         arm.setMaxTorqueAll(100)
@@ -288,7 +287,11 @@ async def main():
 
         await asyncio.sleep(0.5)
 
-        await grabElementSlot(0)
+        await grabElementGround()
+        await setupAfterGrab()
+        await setSlotId(3)
+
+        '''await grabElementSlot(0)
 
         #await setArmBotGallery()
         await setArmTopGallery()

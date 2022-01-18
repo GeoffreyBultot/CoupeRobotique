@@ -28,9 +28,9 @@ class Arm():
     TORQUE_DISABLE              = 0                 # Value for disabling the torque
     DXL_MOVING_STATUS_THRESHOLD = 20                # Dynamixel moving status threshold
 
-    MIN_POS_ID                  = [169, 177, 118]
-    MAX_POS_ID                  = [936, 839, 788]
-    MID_POS_ID                  = [505, 508, 500]
+    MIN_POS_ID                  = [158, 158, 158]
+    MAX_POS_ID                  = [859, 859, 859]
+    MID_POS_ID                  = [512, 512, 512]
 
     MAX_OVERALL_SPEED           = 100
 
