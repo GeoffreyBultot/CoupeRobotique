@@ -15,11 +15,12 @@ from dictionary import *
 from TableDrawer import *
 
 DIM=(1280, 960)
+
 K=np.array([[630.7754887941976, 0.0, 620.9371992476929], [0.0, 629.4950869640792, 465.74381948235816], [0.0, 0.0, 1.0]])
 D=np.array([[-0.02525869724179829], [0.01980933465020202], [-0.02957970842677755], [0.014154643445441723]])
 
 
-C_IP_MQTT = "172.30.40.65"
+C_IP_MQTT = "172.30.40.68"
 
 def on_connect(client, userdata, flags, rc):
 	print("Connected with result code ")
@@ -43,23 +44,49 @@ def data_Thread(theadID):
 		print(client.connect(C_IP_MQTT, 1883, 60))
 		client.loop_forever()
 
+
+def createPayload(id,x,y,z,rz):
+	marker = {}
+	marker["id"]= int(id)
+	marker["x"]= int(x+150) #relative to the border
+	marker["y"]= int(125.0-y) #relative to the border
+	marker["z"] = int(z)
+	marker["rz"] = int(rz)
+	payload_json = json.dumps(marker)
+	return payload_json
+
+
 def mqtt_pubData(ids,tvecs,rvecs):
-	userdata = []
+	
 
 	for k in dict_sizes:
 		j=0
 		for i in range(0,len(ids)):
 			if(ids[i][0] == k):
 				j = j + 1
-				marker = {}
-				marker["id"]= int(ids[i][0])
-				marker["x"]= int(tvecs[i][0])
-				marker["y"]= int(tvecs[i][1]) #?? because why the fuck not
-				marker["z"] = int(tvecs[i][2])
-				marker["rz"] = int(rvecs[i][2])
-				userdata.append(marker)
-				payload_json = json.dumps(marker)
+				payload_json = createPayload(ids[i][0],tvecs[i][0],tvecs[i][1],tvecs[i][2],rvecs[i][2])
 				client.publish(f"data/{ids[i][0]}_{j}", payload=payload_json, qos=0, retain=False)
+	try:
+		idx1 = ids.index([1])
+		idx2 = ids.index([2])
+		x,y,a = determineMidpoint(tvecs[idx1],tvecs[idx2])
+		z = (tvecs[idx1][2]+tvecs[idx2][2])/2
+		payload_json = createPayload(99,x,y,z,a)
+		client.publish("BigBot/2", payload=payload_json, qos=0, retain=False)
+		print(payload_json)
+	except:
+		try:
+			i = ids.index([1])
+			payload_json = createPayload(ids[i][0],tvecs[i][0],tvecs[i][1],tvecs[i][2],rvecs[i][2])
+			client.publish("BigBot/2", payload=payload_json, qos=0, retain=False)
+		except:
+			try:
+				i = ids.index([2])
+				payload_json = createPayload(ids[i][0],tvecs[i][0],tvecs[i][1],tvecs[i][2],rvecs[i][2])
+				client.publish("BigBot/2", payload=payload_json, qos=0, retain=False)
+			except:
+				pass
+		pass
 
 rotation_z = None
 rotation_y = None
@@ -72,7 +99,6 @@ def ComputeRotationOffteur(rvec42):
 	global rotation_x
 	global rotation_y
 	global rotation_z
-	#print('rvec42=',rvec42)
 	thetaX = math.radians(rvec42[0])
 	thetaY = math.radians(rvec42[1])
 	thetaZ = math.radians(rvec42[2])
@@ -104,6 +130,24 @@ def rotationMatrixToEulerAngles(R) :
 		y = math.atan2(-R[2,0], sy)
 		z = 0
 	return np.array([math.degrees(x), math.degrees(y), math.degrees(z)])
+
+def determineMidpoint(point1,point2):
+	x1 = point1[0]
+	y1 = point1[1]
+	x2 = point2[0]
+	y2 = point2[1]
+	diff_vect = [point1[0] - point2[0],point1[1] - point2[1]]
+	midpoint_X = point1[0]-diff_vect[0]/2
+	midpoint_Y = point1[1]-diff_vect[1]/2
+	
+	angle = math.degrees(math.atan(diff_vect[1]/diff_vect[0]))
+	y1 = point1[1] - point2[1]
+	x2 = point1[0] - point2[0]
+	y2 = point1[1] - point2[1]
+	angle = math.degrees(math.atan2(y1, x1) - math.atan2(y2, x2))%360
+
+
+	return midpoint_X, midpoint_Y, angle
 
 def computeMcalibMatrix(rvec42,tvec42):
 	M_calib    = np.matrix(cv2.Rodrigues(rvec42)[0])
@@ -137,8 +181,8 @@ def undistort(img, balance=0, dim2=None, dim3=None):
 if __name__ == '__main__':	
 	_thread.start_new_thread( data_Thread, (1 ,) )
 	print("[DEBUG	] Thread MQTT Started")
-	new_K = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(K, D, DIM, np.eye(3), balance=0)
-	#new_K = K
+	#new_K = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(K, D, DIM, np.eye(3), balance=0)
+	new_K = K
 	t1 = time.time()
 	initUndis()
 	aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_100 )
@@ -151,7 +195,7 @@ if __name__ == '__main__':
 		#cv2.fisheye.undistortImage(frame,K,D,frame,new_K,DIM)
 		gray = cv2.cvtColor((frame), cv2.COLOR_BGR2GRAY)
 		corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
-		#frame = aruco.drawDetectedMarkers(frame, corners)
+		frame = aruco.drawDetectedMarkers(frame, corners)
 		if ids is not None:
 			markers_tvec = []
 			markers_rvec = []
@@ -159,21 +203,18 @@ if __name__ == '__main__':
 			temp_tvecs = []
 			temp_rvecs = []
 			for i in range(0,len(ids)):
-				
 				if(ids[i][0] in dict_sizes):
 					markerSizeInCM = dict_sizes[ids[i][0]]
 					rvec , tvec, _ = aruco.estimatePoseSingleMarkers(corners[i], markerSizeInCM, new_K, D)
 					#frame = cv2.aruco.drawAxis(frame,new_K, D, rvec, tvec, 10)
 					tvec = (tvec[0][0])
 					rvec =  (rvec[0][0])
-					
 					if(ids[i][0]==42):
 						M_Calib = computeMcalibMatrix(rvec,tvec)
 						rotation,_ = cv2.Rodrigues(rvec)
 						rvec = rotationMatrixToEulerAngles(rotation)
 						ComputeRotationOffteur(rvec)
 						rvec42 = rvec
-						print(rvec)
 						tvec42 = tvec
 					temp_tvecs.append(tvec)
 					temp_rvecs.append(rvec)
@@ -181,33 +222,33 @@ if __name__ == '__main__':
 			for i in range (0,len(temp_tvecs)):
 				tvec = temp_tvecs[i]
 				rvec = temp_rvecs[i]
-				if( ids[i][0] != 42 and rotation_x is not None):
-					rotation,_ = cv2.Rodrigues(rvec)
-					rvec = rotationMatrixToEulerAngles(rotation)
-					'''
-					rvec =  np.matmul(rotation_x, rvec)
-					rvec =  np.matmul(rotation_y, rvec)
-					rvec =  np.matmul(rotation_z, rvec)
-					rvec = changeReference(rvec,M_Calib)
-					'''
-					
-				if(rotation_x is not None):
-					'''
-					tvec =  np.matmul(rotation_x, tvec)
-					tvec =  np.matmul(rotation_y, tvec)
-					tvec =  np.matmul(rotation_z, tvec)
-					'''
-					tvec = changeReference(tvec,M_Calib)
-				markers_tvec.append( [tvec[0],tvec[1],tvec[2]])
-				markers_rvec.append( [rvec[0],rvec[1],rvec[2]])
-				markers_ids.append(ids[i])
+				if(ids[i][0] in dict_sizes):
+					if( ids[i][0] != 42 and rotation_x is not None):
+						rotation,_ = cv2.Rodrigues(rvec)
+						rvec = rotationMatrixToEulerAngles(rotation)
+						'''
+						rvec =  np.matmul(rotation_x, rvec)
+						rvec =  np.matmul(rotation_y, rvec)
+						rvec =  np.matmul(rotation_z, rvec)
+						rvec = changeReference(rvec,M_Calib)
+						'''
+						
+					if(M_Calib is not None):
+						'''
+						tvec =  np.matmul(rotation_x, tvec)
+						tvec =  np.matmul(rotation_y, tvec)
+						tvec =  np.matmul(rotation_z, tvec)
+						'''
+						tvec = changeReference(tvec,M_Calib)
+						
+					markers_tvec.append( [tvec[0],tvec[1],tvec[2]])
+					rvec[2] = int(rvec[2])%360
+					markers_rvec.append( [rvec[0],rvec[1], rvec[2]])
+					markers_ids.append(ids[i])
 			#frame = cv2.resize(frame,(800,720))
 			#cv2.imshow("captured",frame)
-			'''
 			if cv2.waitKey(1) & 0xFF == ord('q'):
 				cv2.destroyAllWindows()
-			'''
-			
 			mqtt_pubData(markers_ids,markers_tvec,markers_rvec)
 		rawCapture.truncate(0)
 		

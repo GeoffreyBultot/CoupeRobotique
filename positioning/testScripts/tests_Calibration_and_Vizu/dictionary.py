@@ -5,9 +5,6 @@ dict_sizes = {
 	6: 6.7,
 	7: 6.7,
 	42: 10, #tag central
- }
-
-'''
 	52: 10, #tag Réservé à l'équipe violette
 	53: 10, #tag Réservé à l'équipe violette
 	42: 10, #tag central
@@ -15,8 +12,10 @@ dict_sizes = {
 	47: 5, #face tresor rouge
 	13: 5, #face tresor bleu
 	36: 5, #face tresor vert
-	65: 4.7,
-	'''
+	65: 5
+ }
+
+
 #BGR
 dictColors ={
     1: (255,255,255),
