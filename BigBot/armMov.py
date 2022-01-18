@@ -271,9 +271,10 @@ async def setOutsideFromInside():
     arm.isInside = False
 
 
-'''async def main():
+async def main():
     try:
-        ventouse.setDefault()
+        arm.setServosOurAngle([0,0,0])
+        '''ventouse.setDefault()
 
         arm.enableTorqueAll()
         arm.setMaxTorqueAll(100)
@@ -306,7 +307,7 @@ async def setOutsideFromInside():
 
         await setupAfterGrab()
 
-        await setSlotId(0)
+        await setSlotId(0)'''
 
             
     except KeyboardInterrupt:
@@ -315,4 +316,4 @@ async def setOutsideFromInside():
         if x == "O":
             arm.disableTorqueAll()
 
-asyncio.run(main())'''
+asyncio.run(main())

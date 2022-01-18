@@ -165,9 +165,11 @@ async def loopDrivingUntilFound():
         cv2.destroyAllWindows()
         
         #camera.close()
+        
 
 async def main():
     try:
+        loop = asyncio.get_event_loop()
         await hideInside()
         await loopDrivingUntilFound()
         await grabItem("GND")
@@ -175,8 +177,11 @@ async def main():
         while isCodeRunning and not isStockageFull():
             tasks = [storeItem(), loopDrivingUntilFound()]
 
-            a, b = await asyncio.wait(tasks)
+            a, b = loop.run_until_complete(asyncio.wait(tasks))
+            loop.close()
+            
             print(f"a : {a}, b: {b}")
+            
             await grabItem("GND")
 
         

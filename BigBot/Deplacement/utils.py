@@ -1,4 +1,5 @@
 from enum import IntEnum
+from math import sqrt
 FORWARD = 1
 BACKWARD = 0
 ON = 1
@@ -25,6 +26,8 @@ class Emotor(IntEnum):
     RL = 2
     RR = 3
 
+def getDistance(list):
+    return sqrt(list[0]**2 + list[1]**2)
 
 
 def computeDict():

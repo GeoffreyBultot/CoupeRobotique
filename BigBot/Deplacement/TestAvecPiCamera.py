@@ -67,7 +67,7 @@ def changeXYZ(xyz):
 
 
 if __name__ == '__main__':
-    markerSizeInCM = 10
+    markerSizeInCM = 5
     aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_100)
     parameters =  aruco.DetectorParameters_create()
     print(rotation_matrix)
@@ -93,7 +93,7 @@ if __name__ == '__main__':
             #print(rx)     
             coord_xyz = np.matmul(rotation_matrix, tvec)
             coord_xyz = changeXYZ(coord_xyz)
-            coord_xyz[1] = coord_xyz[1] + 5.2
+            coord_xyz[1] = coord_xyz[1]
             #print(ids)
             print("xyz " + str(coord_xyz))
             targetX = coord_xyz[0]
