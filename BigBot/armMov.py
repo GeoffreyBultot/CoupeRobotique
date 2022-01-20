@@ -6,14 +6,14 @@ import asyncio
 ventouse = Ventouse(2, 3, GPIO.BCM)
 arm = Arm()
 
-slotPositionDrop = [[52, 88, 55],
-                    [67, 85, 45],
+slotPositionDrop = [[47, 88, 55],
+                    [62, 80, 50],
                     [80, 85, 30],
-                    [100, 70, 25]]
+                    [100, 65, 25]]
 
-slotPositionGrab = [[65, 56, 70],
-                    [80, 65, 45],
-                    [100, 45, 47],
+slotPositionGrab = [[65, 50, 70],
+                    [80, 55, 50],
+                    [100, 40, 35],
                     [120, 20, 40]]
 
 
@@ -121,12 +121,6 @@ async def setSlotId(slot):
     arm.setServosOurAngle([40, 90, 30]) #98.07, 
     await asyncio.sleep(0.5)
 
-    arm.MAX_OVERALL_SPEED = 50
-    print("---------------\nSet inside")
-    arm.setServosOurAngle([90, 92, 92]) #98.07, 
-    await asyncio.sleep(0.5)
-    arm.isInside = True
-
 
 async def grabElementSlot(slot):
     arm.isInside = False
@@ -161,7 +155,7 @@ async def grabElementSlot(slot):
 
     print("Going Up")
 
-    arm.MAX_OVERALL_SPEED = 40
+    arm.MAX_OVERALL_SPEED = 25
 
     #await ventouse.drop()
     await asyncio.sleep(0.5)
@@ -283,34 +277,26 @@ async def main():
         servo = ServoStock(13, 400, GPIO.BCM)
 
         servo.setDefault()
+        await asyncio.sleep(0.5)
         servo.stopPwm()
 
+        for i in range(3,-1, -1):
+            await grabElementGround()
+            await setupAfterGrab()
+            await setSlotId(i)
+
+        await hideInside()
+
+        servo.setReverse()
         await asyncio.sleep(0.5)
+        servo.stopPwm()
 
-        await grabElementGround()
-        await setupAfterGrab()
-        await setSlotId(3)
+        for i in range(0, 4):
+            await grabElementSlot(i)
+            await setArmTopGallery()
+            await dropGallery()
 
-        '''await grabElementSlot(0)
-
-        #await setArmBotGallery()
-        await setArmTopGallery()
-
-        await asyncio.sleep(5)
-
-        await dropGallery()
-
-        await setArmPosDistrib(0)
-        #Bot should drive forward util connection with el
-        await asyncio.sleep(5)
-
-        await suckAndSetArmUpDistrib()
-        #Bot should drive back a bit
-        await asyncio.sleep(5)
-
-        await setupAfterGrab()
-
-        await setSlotId(0)'''
+        servo.setDefault()
 
             
     except KeyboardInterrupt:

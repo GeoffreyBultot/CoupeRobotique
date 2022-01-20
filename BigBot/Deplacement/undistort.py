@@ -32,7 +32,7 @@ DIM=(1280, 960)
 K=np.array([[630.932402116786, 0.0, 585.6531301759157], [0.0, 631.6869826709609, 478.8413904560236], [0.0, 0.0, 1.0]])
 D=np.array([[-0.06670587491284909], [0.1057157290509116], [-0.13122001638126551], [0.04714118291127774]])
 
-angle_camera = 30
+angle_camera = 20
 theta_camera = math.radians(angle_camera)
 
 rotation_matrix = np.array([[1,           0 ,                0], #rotation axe X
@@ -61,7 +61,7 @@ if __name__ == '__main__':
 
     for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
         frame = frame_pi.array
-        #frame = cv2.remap(frame, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+        frame = cv2.remap(frame, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
         if ids is not None:
@@ -75,12 +75,14 @@ if __name__ == '__main__':
             rotation,_ = cv2.Rodrigues(rvec_xyz)
             rvec_xyz = np.matmul(rotation_matrix, rvec) 
             euleurAngle = rotationMatrixToEulerAngles(rotation)
-            print(ids)
-            #print("Euler = " ,euleurAngle)
-            print("XYZ = ",coord_xyz)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
-        cv2.imshow("LIVE FEED" ,frame)	
+            dist = math.sqrt(coord_xyz[0]**2 + coord_xyz[1]**2)
+            #print("Dist = ", dist)
+            print("Euler = " ,euleurAngle[2])
+            #print("XYZ = ",coord_xyz)
+
+        cv2.imshow("LIVE FEED" ,frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
         rawCapture.truncate(0)
 
     cv2.destroyAllWindows()

@@ -170,7 +170,8 @@ async def loopDrivingUntilFound():
 async def main():
     try:
         loop = asyncio.get_event_loop()
-        await hideInside()
+        if not arm.isInside:
+            await hideInside()
         await loopDrivingUntilFound()
         await grabItem("GND")
 

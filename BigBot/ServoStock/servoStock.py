@@ -29,10 +29,8 @@ class ServoStock():
         print("[DEBUG  ] Set servo stock to 180 degrees")
 
     def stopPwm(self):
-        self.p.stop()
-
-    def startPwm(self):
-        self.p.start(0)
+        self.p.ChangeDutyCycle(0)
+        
 
 '''print("Test")
 try:
@@ -44,6 +42,13 @@ try:
         time.sleep(3)
         servo.setReverse()
         time.sleep(3)
+
+        servo.stopPwm()
+        print("Steaup")
+        time.sleep(2)
+        #servo.startPwm()
+        #print("Steaurt")
+        #time.sleep(2)
 
 except KeyboardInterrupt:
     GPIO.cleanup()'''

@@ -3,7 +3,7 @@ import math
 import time
 import sys
 import numpy as np
-from utils import computeDict,_set_motor,getDistance
+from .utils import computeDict,_set_motor,getDistance
 
 #TODO Calibration avec item dans le chasse neige
 
@@ -34,8 +34,8 @@ class Robot:
         self.positionX = 0
         self.positionY = 0
         self.orientationZ = 90
-        self.offsetX = 1.9
-        self.offsetY = 5.5 #la camera est 5.5cm à droite du centre du robot
+        self.offsetX = 1.95
+        self.offsetY = 5.2 #la camera est 5.2cm à droite du centre du robot
         self.offsetDistrib = 20
         self.deadBandY = 1
         self.deadBandAngle = 8
@@ -82,7 +82,6 @@ class Robot:
     def goToSelfCamera(self,targetXYZ,targetAngle): #return 1 si on est arrivé, sinon 0
         targetX = targetXYZ[0]
         targetY = targetXYZ[1]
-        targetZ = targetXYZ[2]
         targetY = targetY + self.offsetY
         dist = getDistance(targetXYZ)# + targetZ**2)
         print("Target ANGLE = ",targetAngle)
@@ -182,7 +181,8 @@ class Robot:
 
             
         
-    def goToUsingLocation(self,targetX,targetY, offset_max_distance = 5,offset_max_angle = 10): #TODO translater quand on est aligné
+    def goToUsingLocation(self,targetX,targetY, targetAngle): #TODO translater quand on est aligné* Rotate until I see tag ENT ENTENT
+        offset_max_distance = 8
         deltaX = self.positionX - targetX
         deltaY = self.positionY - targetY
         distance = math.sqrt(deltaX**2 + deltaY**2)
@@ -198,11 +198,15 @@ class Robot:
         print("Current pos X,Y = " + str(self.positionX) + " , " + str(self.positionY))
         if(distance > offset_max_distance):
             if(self.setOrientation(angleToTarget)): #si ça return 1 c'est que la rotation est OK
-                self.speed = self.dict_speed['Medium']
+                self.speed = self.dict_speed['Medium'] #donc on peut avancer
                 print("Forward")
                 self.goForward()
-            return 0
-        return 1
+            return False
+        if(self.setOrientation(targetAngle,15)): #met la bonne orientation
+            print("Arrived, set Orientation")
+            return False
+        print("WOW C FINI INCROYABLE")
+        return True
 
 
     def goToDistributeur(self,targetX,targetY,rot):
@@ -220,17 +224,17 @@ class Robot:
             return 0
         return 1
 
-    def setOrientation(self,angleToReach):
+    def setOrientation(self,angleToReach,offset_max_angle = 15):
         self.speed = self.dict_speed['Slow']
         offset_max_angle = 15
         angleToAchieve = ((angleToReach-self.orientationZ +540)%360)-180  #https://math.stackexchange.com/questions/110080/shortest-way-to-achieve-target-angle/2898118)
         if(abs(angleToAchieve) > offset_max_angle):
             if(angleToAchieve  > 0):
                 self.rotationRight()
-                print("right")      
+                #print("right")      
             else:
                 self.rotationLeft()
-                print("left")
+                #print("left")
             return 0
         return 1
 

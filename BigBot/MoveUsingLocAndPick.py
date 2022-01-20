@@ -1,6 +1,7 @@
 #!/usr/bin/python
 from Deplacement.Robot import *
 from armMov import *
+from Deplacement.Zones_Strategy import dict_zones
 import numpy as np
 import cv2
 from picamera import PiCamera
@@ -13,21 +14,15 @@ import paho.mqtt.client as mqtt
 import json
 
 
-
-
 def on_connect(client, userdata, flags, rc):
     if rc==0:
         print("connected OK Returned code=",rc)
-        client.subscribe(TOPIC_BIG_BOT + "/#")
+        client.subscribe(TOPIC_BIG_BOT)
     else:
         print("Bad connection Returned code=",rc)
 
 
 def on_message(client, userdata, message):
-    global data_id
-    global data_id_topic
-    global data_rvec
-    global data_tvec
     global JeanMichelDuma
     msg = message.payload.decode("utf-8")
     msg = json.loads(msg)
@@ -35,6 +30,7 @@ def on_message(client, userdata, message):
         JeanMichelDuma.positionX = msg["x"]
         JeanMichelDuma.positionY = msg["y"]
         JeanMichelDuma.orientationZ = msg["rz"]
+        #print(f"Robot : X =  {JeanMichelDuma.positionX}, Y = {JeanMichelDuma.positionY}, RZ = {JeanMichelDuma.orientationZ}")
 
 
 def data_Thread(theadID):
@@ -44,9 +40,10 @@ def data_Thread(theadID):
         print(client.connect(C_IP_MQTT, 1883, 60))
         client.loop_forever()
 
-C_IP_MQTT = "172.30.40.65"
+C_IP_MQTT = "172.30.40.68"
 client = mqtt.Client()
 client.on_connect = on_connect
+client.on_message = on_message
 
 
 #region ENT
@@ -69,15 +66,20 @@ def rotationMatrixToEulerAngles(R) :
 
 
 DIM=(1280, 960)
-camera_matrix=np.array([[630.932402116786, 0.0, 585.6531301759157], [0.0, 631.6869826709609, 478.8413904560236], [0.0, 0.0, 1.0]])
-distortion_coeff=np.array([[-0.06670587491284909], [0.1057157290509116], [-0.13122001638126551], [0.04714118291127774]])
+camera_matrix = np.array([[630.932402116786, 0.0, 585.6531301759157], [0.0, 631.6869826709609, 478.8413904560236], [0.0, 0.0, 1.0]])
+distortion_coeff = np.array([[-0.06670587491284909], [0.1057157290509116], [-0.13122001638126551], [0.04714118291127774]])
 
-angle_camera = 30
+angle_camera = 20
 theta_camera = math.radians(angle_camera)
 
 rotation_matrix = np.array([[1,           0 ,                0], #rotation axe X
 [0           ,math.cos(theta_camera),               -math.sin(theta_camera)],
-[0,         math.sin(theta_camera),                math.cos(theta_camera)]]) 
+[0,         math.sin(theta_camera),                math.cos(theta_camera)]])
+
+def initUndis():
+	global map1
+	global map2
+	map1, map2 = cv2.fisheye.initUndistortRectifyMap(camera_matrix, distortion_coeff, np.eye(3), camera_matrix, DIM, cv2.CV_16SC2)
 
 def calculateDistance(list):
     dist = 0
@@ -90,6 +92,12 @@ def changeXYZ(xyz):
     temp = [-xyz[1],xyz[0], xyz[2] ]
     return temp
 
+def numberOfItemInStockage():
+    n = 0
+    for i in range(0, len(stockageArray)):
+        if stockageArray[i] == True:
+            n += 1
+    return n
 
 def isStockageFull():
     for i in range(0, len(stockageArray)):
@@ -152,8 +160,7 @@ async def loopDrivingUntilFound():
         for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
             frame = frame_pi.array
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
-            
+            corners, ids, _ = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)    
             idx_42 = np.where(ids == [42])
 
             if(idx_42[0].size > 0):
@@ -179,15 +186,11 @@ async def loopDrivingUntilFound():
                 rz = euleurAngle[2]
                 coord_xyz = np.matmul(rotation_matrix, tvec)
                 coord_xyz = changeXYZ(coord_xyz)
-                #print(coord_xyz)
-                #print(rz)
                 distance = [] #clear le tableau
                 ret_array = []
-                if(JeanMichelDuma.approachTargetUsingRotation(coord_xyz,rz)):
-                    if(JeanMichelDuma.goToSelfCamera(coord_xyz,rz)):
-                        print("steaup")
-                        #camera.close()
-                        return True  
+                if(JeanMichelDuma.goToSelfCamera(coord_xyz,rz)):
+                    print("steaup")
+                    return True  
             else:
                 print("Not detected")
                 if not isArmMoving:
@@ -197,21 +200,29 @@ async def loopDrivingUntilFound():
             await asyncio.sleep(0.05)
             rawCapture.truncate(0)
 
-        cv2.destroyAllWindows()
-        
-        #camera.close()
-
-async def goToPostion():
-    targetX = 105
-    targetY = 85
-    JeanMichelDuma.goToUsingLocation(targetX,targetY)
-        
+async def goToStartPosition():
+    targetX = dict_zones['Start'][0] / 10
+    targetY = dict_zones['Start'][1] / 10
+    print(f"fTarget = {targetX} , {targetY}")
+    targetAngle = 30
+    while(True):
+        await asyncio.sleep(0.05)
+        if(JeanMichelDuma.goToUsingLocation(targetX,targetY,targetAngle)):
+            client.unsubscribe(TOPIC_BIG_BOT)
+            print("ARRIVED")
+            time.sleep(5)
+            return
 
 async def main():
-    try:
+    initUndis() #initialize le undistort
+    _thread.start_new_thread( data_Thread, (1 ,) )
+    print("[DEBUG	] Thread MQTT Started")
+    try:  
         loop = asyncio.get_event_loop()
-        await hideInside()
-        await goToPosition()
+        if not arm.isInside:
+            await hideInside()
+        await goToStartPosition()
+        print("AYYYYYYYYYAAAAAAAAAAAA")
         await loopDrivingUntilFound()
         await grabItem("GND")
 
@@ -224,6 +235,11 @@ async def main():
             print(f"a : {a}, b: {b}")
             
             await grabItem("GND")
+            if(numberOfItemInStockage == 3):
+                arm.disableTorqueAll()
+                JeanMichelDuma.stopMotors()
+                servo.stopPwm()
+                exit()
 
         
     except KeyboardInterrupt:
@@ -244,7 +260,7 @@ isCodeRunning = True
 isArmMoving = False
 
 
-TOPIC_BIG_BOT = "BigBot"
+TOPIC_BIG_BOT = "BigBot/2"
 JeanMichelDuma = Robot()
 JeanMichelDuma.DEBUG = 0
 markerSizeInCM = 5
