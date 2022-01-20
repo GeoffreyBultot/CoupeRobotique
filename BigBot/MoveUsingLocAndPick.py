@@ -30,7 +30,7 @@ def on_message(client, userdata, message):
         JeanMichelDuma.positionX = msg["x"]
         JeanMichelDuma.positionY = msg["y"]
         JeanMichelDuma.orientationZ = msg["rz"]
-        #print(f"Robot : X =  {JeanMichelDuma.positionX}, Y = {JeanMichelDuma.positionY}, RZ = {JeanMichelDuma.orientationZ}")
+        #cprint(f"Robot : X =  {JeanMichelDuma.positionX}, Y = {JeanMichelDuma.positionY}, RZ = {JeanMichelDuma.orientationZ}")
 
 
 def data_Thread(theadID):
@@ -206,7 +206,7 @@ async def goToStartPosition():
     print(f"fTarget = {targetX} , {targetY}")
     targetAngle = 30
     while(True):
-        await asyncio.sleep(0.05)
+        await asyncio.sleep(0.15)
         if(JeanMichelDuma.goToUsingLocation(targetX,targetY,targetAngle)):
             client.unsubscribe(TOPIC_BIG_BOT)
             print("ARRIVED")

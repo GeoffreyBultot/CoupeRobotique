@@ -17,62 +17,62 @@ slotPositionGrab = [[65, 50, 70],
                     [120, 20, 40]]
 
 
-async def grabElementGround():
+def grabElementGround():
     arm.isInside = False
     arm.MAX_OVERALL_SPEED = 25
     print("---------------\nSetting before sunct")
     arm.setServosOurAngle([13, 30, 86])
-    await asyncio.sleep(0.5)
+    time.sleep(0.5)
 
     arm.setServosOurAngle([20,20,50])
-    await asyncio.sleep(0.5)
+    time.sleep(0.5)
 
     arm.setServosOurAngle([49, 30, 9])
-    await asyncio.sleep(0.2)
+    time.sleep(0.2)
 
     arm.setServosOurAngle([57, 15, 17])
     print("Sucking")
-    await ventouse.sunct()
+    ventouse.sunct()
 
 
-async def setupAfterGrab():
+def setupAfterGrab():
     arm.isInside = False
     arm.MAX_OVERALL_SPEED = 20
     print("---------------\n Back A BIT")
     arm.setServosOurAngle([6, 71, 23])
-    await asyncio.sleep(0.5)
+    time.sleep(0.5)
 
     print("---------------\nSetting Higher")
     arm.setServosOurAngle([20, 60, 45])
-    await asyncio.sleep(0.5)
+    time.sleep(0.5)
 
     print("---------------\nSetting Inside")
     arm.setServosOurAngle([32, 67, 80])
-    await asyncio.sleep(0.4)
+    time.sleep(0.4)
 
 
-async def setArmPosDistrib(uid):
+def setArmPosDistrib(uid):
     if arm.isInside:
-        await setOutsideFromInside()
+        setOutsideFromInside()
     arm.MAX_OVERALL_SPEED = 30
 
     print("---------------\nSetting before sunct Distrib")
     arm.setServosOurAngle([40, 0, 0])
-    await asyncio.sleep(0.5)
+    time.sleep(0.5)
     if uid == 0:
         arm.setServosOurAngle([16, 62, -52])
-        await asyncio.sleep(0.7)
+        time.sleep(0.7)
     elif uid == 1:
         arm.setServosOurAngle([18, 62, -52])
-        await asyncio.sleep(0.7)
+        time.sleep(0.7)
     elif uid == 2:
         arm.setServosOurAngle([20, 57, -45])
-        await asyncio.sleep(0.7)
+        time.sleep(0.7)
 
 
-async def suckAndSetArmUpDistrib():
+def suckAndSetArmUpDistrib():
     arm.isInside = False
-    await ventouse.sunct()
+    ventouse.sunct()
 
     arm.MAX_OVERALL_SPEED = 20
 
@@ -80,85 +80,85 @@ async def suckAndSetArmUpDistrib():
     arm.setServosOurAngle([0, 60, -90])
 
 
-async def setSlotId(slot):
+def setSlotId(slot):
     arm.isInside = False
     arm.MAX_OVERALL_SPEED = 10
     if slot>=0:
         print("---------------\nSetting 1st")
         arm.setServosOurAngle(slotPositionDrop[0]) 
-        await asyncio.sleep(0.5)
+        time.sleep(0.5)
     
     if slot>=1:
         print("---------------\nSetting 2d")
         arm.setServosOurAngle(slotPositionDrop[1])  
-        await asyncio.sleep(0.4)
+        time.sleep(0.4)
 
     if slot>=2:
         print("---------------\nSetting 3rd")
         arm.setServosOurAngle(slotPositionDrop[2]) 
-        await asyncio.sleep(0.4)
+        time.sleep(0.4)
 
     if slot>=3:
         print("---------------\nSetting 4th")
         arm.setServosOurAngle(slotPositionDrop[3])
-        await asyncio.sleep(0.4)
+        time.sleep(0.4)
 
-    await asyncio.sleep(0.5)
-    await ventouse.drop()
+    time.sleep(0.5)
+    ventouse.drop()
     arm.MAX_OVERALL_SPEED = 30
 
     if slot>=3:
         print("---------------\nSetting 3rd")
         arm.setServosOurAngle(slotPositionDrop[2]) #98.07, 
-        await asyncio.sleep(0.5)
+        time.sleep(0.5)
 
     if slot>0:
         print("---------------\nSetting 1st")
         arm.setServosOurAngle(slotPositionDrop[0]) #98.07, 
-        await asyncio.sleep(0.5)
+        time.sleep(0.5)
 
     print("---------------\nSetting Preparation")
     arm.setServosOurAngle([40, 90, 30]) #98.07, 
-    await asyncio.sleep(0.5)
+    time.sleep(0.5)
 
 
-async def grabElementSlot(slot):
+def grabElementSlot(slot):
     arm.isInside = False
     arm.MAX_OVERALL_SPEED = 20
     print("---------------\nSetting Inside")
     arm.setServosOurAngle([32, 67, 80])
-    await asyncio.sleep(0.4)
+    time.sleep(0.4)
     
     if slot>=0:
         arm.MAX_OVERALL_SPEED = 15
         print("---------------\nGrabbing 1st")
         arm.setServosOurAngle(slotPositionGrab[0])
-        await asyncio.sleep(0.5)
+        time.sleep(0.5)
     
     if slot>=1:
         print("---------------\nGrabbing 2d")
         arm.setServosOurAngle(slotPositionGrab[1])
-        await asyncio.sleep(0.5)
+        time.sleep(0.5)
 
     if slot>=2:
         print("---------------\nGrabbing 3rd")
         arm.setServosOurAngle(slotPositionGrab[2])
-        await asyncio.sleep(0.5)
+        time.sleep(0.5)
 
     if slot>=3:
         print("---------------\nGrabbing 4th")
         arm.setServosOurAngle(slotPositionGrab[3])
-        await asyncio.sleep(0.5)
+        time.sleep(0.5)
 
     print("Sucking")
-    await ventouse.sunct()
+    ventouse.sunct()
 
     print("Going Up")
 
     arm.MAX_OVERALL_SPEED = 25
 
-    #await ventouse.drop()
-    await asyncio.sleep(0.5)
+    #ventouse.drop()
+    time.sleep(0.5)
 
     if slot == 0:
         arm.setServosOurAngle([52, 88, 63])
@@ -169,103 +169,103 @@ async def grabElementSlot(slot):
     elif slot == 3:
         arm.setServosOurAngle(slotPositionDrop[3])
     
-    await asyncio.sleep(0.5)
+    time.sleep(0.5)
 
     if slot>=3:
         print("---------------\nSetting 3rd")
         arm.setServosOurAngle(slotPositionDrop[2])
-        await asyncio.sleep(0.5)
+        time.sleep(0.5)
 
     if slot>0:
         print("---------------\nSetting 1st")
         arm.setServosOurAngle(slotPositionDrop[0])
-        await asyncio.sleep(0.5)
+        time.sleep(0.5)
 
     print("---------------\nSetting Preparation")
     arm.setServosOurAngle([20, 90, 70])
-    await asyncio.sleep(0.5)
+    time.sleep(0.5)
 
 
-async def setArmBotGallery():
+def setArmBotGallery():
     arm.MAX_OVERALL_SPEED = 20
     arm.isInside = False
     arm.setServosOurAngle([-9, 50.3, -25])
-    await asyncio.sleep(1)
+    time.sleep(1)
 
 
-async def dropGallery():
-    await ventouse.drop()
+def dropGallery():
+    ventouse.drop()
     print("---------------\nSetting Inside")
     #arm.setServosOurAngle([32, 67, 80])
-    await hideInside()
+    hideInside()
 
 
-async def setArmTopGallery():
+def setArmTopGallery():
     arm.MAX_OVERALL_SPEED = 20
     arm.isInside = False
     arm.setServosOurAngle([-30, 0, 29])
-    await asyncio.sleep(1)
+    time.sleep(1)
 
 
-async def throw():
+def throw():
     arm.setServosOurAngle([20,20,20])
-    await asyncio.sleep(1)
+    time.sleep(1)
     
     arm.MAX_OVERALL_SPEED = 30
     arm.setServosOurAngle([-25,0,0])
-    await asyncio.sleep(0.15)
+    time.sleep(0.15)
 
-    await ventouse.drop()
-    await asyncio.sleep(0.1)
+    ventouse.drop()
+    time.sleep(0.1)
 
     arm.MAX_OVERALL_SPEED = 20
     arm.setServosOurAngle([20,20,20])
-    await asyncio.sleep(0.2)
+    time.sleep(0.2)
 
 
-async def flex():
+def flex():
     arm.MAX_OVERALL_SPEED = 100
     arm.setServosOurAngle([0,0,0])
-    await asyncio.sleep(0.1)
+    time.sleep(0.1)
     arm.setServosOurAngle([0,-45,0])
-    await asyncio.sleep(0.1)
+    time.sleep(0.1)
     arm.setServosOurAngle([0,-45,-45])
-    await asyncio.sleep(0.1)
+    time.sleep(0.1)
     arm.setServosOurAngle([0,-0,-45])
-    await asyncio.sleep(0.1)
+    time.sleep(0.1)
 
 
-async def hideOutside():
+def hideOutside():
     arm.MAX_OVERALL_SPEED = 50
     arm.setServosOurAngle([45,0,0])
-    await asyncio.sleep(0.2)
+    time.sleep(0.2)
     arm.setServosOurAngle([0,45,45])
     arm.MAX_OVERALL_SPEED = 20
     arm.isInside = False
 
 
-async def hideInside():
+def hideInside():
     arm.MAX_OVERALL_SPEED = 50
     arm.setServosOurAngle([45,0,0])
-    await asyncio.sleep(0.2)
+    time.sleep(0.2)
     arm.setServosOurAngle([45,90,90])
-    await asyncio.sleep(0.2)
+    time.sleep(0.2)
     arm.setServosOurAngle([90,92,92])
     arm.MAX_OVERALL_SPEED = 20
     arm.isInside = True
 
 
-async def setOutsideFromInside():
+def setOutsideFromInside():
     arm.MAX_OVERALL_SPEED = 50
     arm.setServosOurAngle([20,90,90])
-    await asyncio.sleep(0.4)
+    time.sleep(0.4)
     arm.setServosOurAngle([20,90,60])
-    await asyncio.sleep(0.2)
+    time.sleep(0.2)
     arm.MAX_OVERALL_SPEED = 20
     arm.isInside = False
 
 
-async def main():
+'''def main():
     try:
         ventouse.setDefault()
 
@@ -277,24 +277,24 @@ async def main():
         servo = ServoStock(13, 400, GPIO.BCM)
 
         servo.setDefault()
-        await asyncio.sleep(0.5)
+        time.sleep(0.5)
         servo.stopPwm()
 
         for i in range(3,-1, -1):
-            await grabElementGround()
-            await setupAfterGrab()
-            await setSlotId(i)
+            grabElementGround()
+            setupAfterGrab()
+            setSlotId(i)
 
-        await hideInside()
+        hideInside()
 
         servo.setReverse()
-        await asyncio.sleep(0.5)
+        time.sleep(0.5)
         servo.stopPwm()
 
         for i in range(0, 4):
-            await grabElementSlot(i)
-            await setArmTopGallery()
-            await dropGallery()
+            grabElementSlot(i)
+            setArmTopGallery()
+            dropGallery()
 
         servo.setDefault()
 
@@ -305,4 +305,4 @@ async def main():
         if x == "O":
             arm.disableTorqueAll()
 
-asyncio.run(main())
+main()'''

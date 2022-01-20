@@ -15,14 +15,14 @@ class Ventouse():
         GPIO.output(self.electroValve, 0)
         GPIO.output(self.airPump, 0)
 
-    async def sunct(self):
+    def sunct(self):
         GPIO.output(self.airPump, 1)
-        await asyncio.sleep(1)
+        time.sleep(1)
         GPIO.output(self.airPump, 0)
 
-    async def drop(self):
+    def drop(self):
         GPIO.output(self.electroValve, 1)
-        await asyncio.sleep(0.2)
+        time.sleep(0.2)
         GPIO.output(self.electroValve, 0)
 
 '''async def main():

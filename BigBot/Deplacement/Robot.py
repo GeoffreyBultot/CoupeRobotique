@@ -34,7 +34,7 @@ class Robot:
         self.positionX = 0
         self.positionY = 0
         self.orientationZ = 90
-        self.offsetX = 1.95
+        self.offsetX = 2
         self.offsetY = 5.2 #la camera est 5.2cm à droite du centre du robot
         self.offsetDistrib = 20
         self.deadBandY = 1
@@ -88,7 +88,6 @@ class Robot:
         angle_normalized = targetAngle%60
         print("Target X = " + str(targetX) + "Target Y = " + str(targetY))
         print("Angle = " + str(targetAngle))
-        print("Dist = ",dist)
 
         if(dist > 38):
             self.approachTarget(targetX,targetY)
@@ -189,10 +188,12 @@ class Robot:
         print("Distance to Target = " +str(distance))
         if (deltaX == 0):
             deltaX = 0.01
-        if (deltaY > 0):
+        if (deltaX < 0):
             angleToTarget =  math.degrees(math.atan(deltaY/deltaX)) +90
         else:
             angleToTarget =  (math.degrees(math.atan(deltaY/deltaX)) +270)
+            print("Second cas")
+        print(f"deltaX = {deltaX}, deltaY = {deltaY}")
         print("Current Angle = " + str(self.orientationZ))
         print("Angle To Target = " + str(angleToTarget))
         print("Current pos X,Y = " + str(self.positionX) + " , " + str(self.positionY))
@@ -201,9 +202,6 @@ class Robot:
                 self.speed = self.dict_speed['Medium'] #donc on peut avancer
                 print("Forward")
                 self.goForward()
-            return False
-        if(self.setOrientation(targetAngle,15)): #met la bonne orientation
-            print("Arrived, set Orientation")
             return False
         print("WOW C FINI INCROYABLE")
         return True
@@ -226,7 +224,6 @@ class Robot:
 
     def setOrientation(self,angleToReach,offset_max_angle = 15):
         self.speed = self.dict_speed['Slow']
-        offset_max_angle = 15
         angleToAchieve = ((angleToReach-self.orientationZ +540)%360)-180  #https://math.stackexchange.com/questions/110080/shortest-way-to-achieve-target-angle/2898118)
         if(abs(angleToAchieve) > offset_max_angle):
             if(angleToAchieve  > 0):

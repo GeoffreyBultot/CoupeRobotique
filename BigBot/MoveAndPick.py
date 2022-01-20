@@ -7,8 +7,10 @@ from picamera import PiCamera
 from picamera.array import PiRGBArray
 from cv2 import aruco
 import math
-import asyncio
 import threading
+import _thread
+
+from queue import Queue
 
 # Calculates rotation matrix to euler angles
 # The result is the same as MATLAB except the order
@@ -35,7 +37,12 @@ DIM=(1280, 960)
 camera_matrix=np.array([[630.932402116786, 0.0, 585.6531301759157], [0.0, 631.6869826709609, 478.8413904560236], [0.0, 0.0, 1.0]])
 distortion_coeff=np.array([[-0.06670587491284909], [0.1057157290509116], [-0.13122001638126551], [0.04714118291127774]])
 
-angle_camera = 30
+def initUndis():
+	global map1
+	global map2
+	map1, map2 = cv2.fisheye.initUndistortRectifyMap(camera_matrix, distortion_coeff, np.eye(3), camera_matrix, DIM, cv2.CV_16SC2)
+
+angle_camera = 20
 theta_camera = math.radians(angle_camera)
 
 rotation_matrix = np.array([[1,           0 ,                0], #rotation axe X
@@ -62,46 +69,46 @@ def isStockageFull():
     return True
 
 
-async def grabItem(posElement):
+def grabItem(posElement):
     global isArmMoving
 
     isArmMoving = True
     if posElement == "GND":
-        await grabElementGround()
+        grabElementGround()
 
     elif posElement == "DSTB0":
-        await setArmPosDistrib(0)
+        setArmPosDistrib(0)
         #SHOULD DRIVE FORWARD HERE
-        await suckAndSetArmUpDistrib()
+        suckAndSetArmUpDistrib()
         #SHOULD DRIVE BACK HERE
 
     elif posElement == "DSTB1":
-        await setArmPosDistrib(1)
+        setArmPosDistrib(1)
         #SHOULD DRIVE FORWARD HERE
-        await suckAndSetArmUpDistrib()
+        suckAndSetArmUpDistrib()
         #SHOULD DRIVE BACK HERE
 
     elif posElement == "DSTB2":
-        await setArmPosDistrib(2)
+        setArmPosDistrib(2)
         #SHOULD DRIVE FORWARD HERE
-        await suckAndSetArmUpDistrib()
+        suckAndSetArmUpDistrib()
         #SHOULD DRIVE BACK HERE
 
 
-async def storeItem():
+def storeItem():
     global isArmMoving
     
-    await setupAfterGrab()
+    setupAfterGrab()
     for i in range(3, 0, -1):
         if not stockageArray[i]:
-            await setSlotId(i)
+            setSlotId(i)
             stockageArray[i] = True
             print("stockageArray :", stockageArray)
             isArmMoving = False
             return True
 
 
-async def loopDrivingUntilFound():
+def loopDrivingUntilFound():
     global isArmMoving
 
     #camera = PiCamera()
@@ -159,7 +166,6 @@ async def loopDrivingUntilFound():
                     JeanMichelDuma.speed = JeanMichelDuma.dict_speed['Medium']
                     JeanMichelDuma.rotationLeft()
 
-            await asyncio.sleep(0.05)
             rawCapture.truncate(0)
 
         cv2.destroyAllWindows()
@@ -167,23 +173,31 @@ async def loopDrivingUntilFound():
         #camera.close()
         
 
-async def main():
+def main():
+    initUndis()
     try:
-        loop = asyncio.get_event_loop()
-        if not arm.isInside:
-            await hideInside()
-        await loopDrivingUntilFound()
-        await grabItem("GND")
+        arm.setServosOurAngle([90,92,92])
+        loopDrivingUntilFound()
+        grabItem("GND")
 
         while isCodeRunning and not isStockageFull():
-            tasks = [storeItem(), loopDrivingUntilFound()]
+            arm_thread = threading.Thread(target=lambda q, arg1: q.put(storeItem(arg1)), args=(que,))
+            arm_thread.start()
 
-            a, b = loop.run_until_complete(asyncio.wait(tasks))
-            loop.close()
+            #driveThread = threading.Thread(target=loopDrivingUntilFound, args=())
+            drive_thread = threading.Thread(target=lambda q, arg1: q.put( loopDrivingUntilFound(arg1)), args=(que,))
+            drive_thread.start()
+
+            arm_thread.join()
+
+            if drive_thread.is_alive():
+                hideInside()
+                drive_thread.join()
+
+            res_drive = que.get() 
+            print("res_drive :", res_drive)
             
-            print(f"a : {a}, b: {b}")
-            
-            await grabItem("GND")
+            grabItem("GND")
 
         
     except KeyboardInterrupt:
@@ -202,6 +216,8 @@ x
 team = "Y" #"P"
 isCodeRunning = True
 isArmMoving = False
+
+que = Queue()
 
 JeanMichelDuma = Robot()
 JeanMichelDuma.DEBUG = 0
@@ -231,5 +247,4 @@ servo = ServoStock(13, 400, GPIO.BCM)
 servo.setDefault()
 servo.stopPwm()
 
-if __name__ == '__main__':
-    asyncio.run(main())
+main()

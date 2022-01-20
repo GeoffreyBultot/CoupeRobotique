@@ -9,6 +9,7 @@ import math
 import _thread
 import paho.mqtt.client as mqtt
 import json
+from Zones_Strategy import dict_zones
 
 
 TOPIC_BIG_BOT = "BigBot"
@@ -23,9 +24,6 @@ def on_connect(client, userdata, flags, rc):
 
 def on_message(client, userdata, message):
     global data_id
-    global data_id_topic
-    global data_rvec
-    global data_tvec
     global JeanMichelDuma
     msg = message.payload.decode("utf-8")
     msg = json.loads(msg)
@@ -63,16 +61,21 @@ if __name__ == '__main__':
     client.on_connect = on_connect
     client.on_message = on_message
     JeanMichelDuma.speed = JeanMichelDuma.dict_speed['Slow']
+    targetX = dict_zones['Start'][0] / 10
+    targetY = dict_zones['Start'][1] / 10
+    print(f"fTarget = {targetX} , {targetY}")
+    targetAngle = 30
     while(True):
         try:
             #if(JeanMichelDuma.setOrientation(340)): test la rotation
-            if(JeanMichelDuma.goToUsingLocation(105,150)):
-                print("steaup")
-                JeanMichelDuma.stopMotors()
-                exit()
+            if(JeanMichelDuma.goToUsingLocation(targetX,targetY,targetAngle)):
+                if(JeanMichelDuma.setOrientation(targetAngle,12)): #met la bonne orientation
+                    print("Arrived, set Orientation")
+                    print("steaup")
+                    JeanMichelDuma.stopMotors()
+                    exit()
             else:
-                pass
-                #time.sleep(0.15)#
+                time.sleep(0.05)
                 #print("Not detected")
                 #JeanMichelDuma.stopMotors()
         except:
