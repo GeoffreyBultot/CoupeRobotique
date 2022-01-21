@@ -13,17 +13,17 @@ import time
 import math 
 from dictionary import *
 from TableDrawer import *
+from mqtt_utils import *
 
 DIM=(1280, 960)
 
 K=np.array([[630.7754887941976, 0.0, 620.9371992476929], [0.0, 629.4950869640792, 465.74381948235816], [0.0, 0.0, 1.0]])
 D=np.array([[-0.02525869724179829], [0.01980933465020202], [-0.02957970842677755], [0.014154643445441723]])
 
+#calib parfaite avec newK=K et undistort = remap 
+K=np.array([[631.2572612018607, 0.0, 618.467038857025], [0.0, 629.6274581887568, 467.35515194079954], [0.0, 0.0, 1.0]])
+D=np.array([[-0.0215299622191804], [-0.014370973740814787], [0.021604009136345702], [-0.009689611617510977]])
 
-C_IP_MQTT = "172.30.40.68"
-
-def on_connect(client, userdata, flags, rc):
-	print("Connected with result code ")
 
 #If on RPI
 camera = PiCamera()
@@ -31,62 +31,8 @@ camera = PiCamera()
 #camera.iso = 800 # max ISO to force exposure time to minimum to get less motion blur
 #camera.contrast = 0
 camera.resolution = DIM
-camera.framerate = 30
+#camera.framerate = 30
 rawCapture = PiRGBArray(camera, size=camera.resolution)
-
-client = mqtt.Client()
-client.on_connect = on_connect
-
-def data_Thread(theadID):
-	while True:
-		print('[DEBUG	] Connecting to the TTN Broker...')
-		#client.connect("192.168.0.13", 1883, 60)
-		print(client.connect(C_IP_MQTT, 1883, 60))
-		client.loop_forever()
-
-
-def createPayload(id,x,y,z,rz):
-	marker = {}
-	marker["id"]= int(id)
-	marker["x"]= int(x+150) #relative to the border
-	marker["y"]= int(125.0-y) #relative to the border
-	marker["z"] = int(z)
-	marker["rz"] = int(rz)
-	payload_json = json.dumps(marker)
-	return payload_json
-
-
-def mqtt_pubData(ids,tvecs,rvecs):
-	
-
-	for k in dict_sizes:
-		j=0
-		for i in range(0,len(ids)):
-			if(ids[i][0] == k):
-				j = j + 1
-				payload_json = createPayload(ids[i][0],tvecs[i][0],tvecs[i][1],tvecs[i][2],rvecs[i][2])
-				client.publish(f"data/{ids[i][0]}_{j}", payload=payload_json, qos=0, retain=False)
-	try:
-		idx1 = ids.index([1])
-		idx2 = ids.index([2])
-		x,y,a = determineMidpoint(tvecs[idx1],tvecs[idx2])
-		z = (tvecs[idx1][2]+tvecs[idx2][2])/2
-		payload_json = createPayload(99,x,y,z,a)
-		client.publish("BigBot/2", payload=payload_json, qos=0, retain=False)
-		print(payload_json)
-	except:
-		try:
-			i = ids.index([1])
-			payload_json = createPayload(ids[i][0],tvecs[i][0],tvecs[i][1],tvecs[i][2],rvecs[i][2])
-			client.publish("BigBot/2", payload=payload_json, qos=0, retain=False)
-		except:
-			try:
-				i = ids.index([2])
-				payload_json = createPayload(ids[i][0],tvecs[i][0],tvecs[i][1],tvecs[i][2],rvecs[i][2])
-				client.publish("BigBot/2", payload=payload_json, qos=0, retain=False)
-			except:
-				pass
-		pass
 
 rotation_z = None
 rotation_y = None
@@ -146,7 +92,6 @@ def determineMidpoint(point1,point2):
 	y2 = point1[1] - point2[1]
 	angle = math.degrees(math.atan2(y1, x1) - math.atan2(y2, x2))%360
 
-
 	return midpoint_X, midpoint_Y, angle
 
 def computeMcalibMatrix(rvec42,tvec42):
@@ -171,27 +116,21 @@ def initUndis():
 	global map2
 	map1, map2 = cv2.fisheye.initUndistortRectifyMap(K, D, np.eye(3), K, DIM, cv2.CV_16SC2)
 
-def undistort(img, balance=0, dim2=None, dim3=None):
-	#img = cv2.resize(img,DIM)
-	dim1 = img.shape[:2][::-1]  #dim1 is the dimension of input image to un-distort
-	assert dim1[0]/dim1[1] == DIM[0]/DIM[1], "Image to undistort needs to have same aspect ratio as the ones used in calibration"
-	undistorted_img = cv2.remap(img, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
-	return(undistorted_img)
-
 if __name__ == '__main__':	
-	_thread.start_new_thread( data_Thread, (1 ,) )
+	initClient()
 	print("[DEBUG	] Thread MQTT Started")
-	#new_K = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(K, D, DIM, np.eye(3), balance=0)
+	#new_K = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(K, D, DIM, np.eye(3), balance=1)
 	new_K = K
 	t1 = time.time()
 	initUndis()
 	aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_100 )
 	parameters =  aruco.DetectorParameters_create()
 	M_Calib = None
+	t1 = time.time()
 	for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
 		frame=frame_pi.array
 		image_base = frame
-		frame = undistort(frame)
+		frame = cv2.remap(frame, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
 		#cv2.fisheye.undistortImage(frame,K,D,frame,new_K,DIM)
 		gray = cv2.cvtColor((frame), cv2.COLOR_BGR2GRAY)
 		corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
@@ -213,7 +152,7 @@ if __name__ == '__main__':
 						M_Calib = computeMcalibMatrix(rvec,tvec)
 						rotation,_ = cv2.Rodrigues(rvec)
 						rvec = rotationMatrixToEulerAngles(rotation)
-						ComputeRotationOffteur(rvec)
+						#ComputeRotationOffteur(rvec)
 						rvec42 = rvec
 						tvec42 = tvec
 					temp_tvecs.append(tvec)
@@ -223,22 +162,11 @@ if __name__ == '__main__':
 				tvec = temp_tvecs[i]
 				rvec = temp_rvecs[i]
 				if(ids[i][0] in dict_sizes):
-					if( ids[i][0] != 42 and rotation_x is not None):
+					if( ids[i][0] != 42 and M_Calib is not None):
 						rotation,_ = cv2.Rodrigues(rvec)
 						rvec = rotationMatrixToEulerAngles(rotation)
-						'''
-						rvec =  np.matmul(rotation_x, rvec)
-						rvec =  np.matmul(rotation_y, rvec)
-						rvec =  np.matmul(rotation_z, rvec)
-						rvec = changeReference(rvec,M_Calib)
-						'''
 						
 					if(M_Calib is not None):
-						'''
-						tvec =  np.matmul(rotation_x, tvec)
-						tvec =  np.matmul(rotation_y, tvec)
-						tvec =  np.matmul(rotation_z, tvec)
-						'''
 						tvec = changeReference(tvec,M_Calib)
 						
 					markers_tvec.append( [tvec[0],tvec[1],tvec[2]])
@@ -247,8 +175,11 @@ if __name__ == '__main__':
 					markers_ids.append(ids[i])
 			#frame = cv2.resize(frame,(800,720))
 			#cv2.imshow("captured",frame)
-			if cv2.waitKey(1) & 0xFF == ord('q'):
-				cv2.destroyAllWindows()
+			
 			mqtt_pubData(markers_ids,markers_tvec,markers_rvec)
-		rawCapture.truncate(0)
+			print(1/(time.time()-t1))
+			t1 = time.time()
 		
+		rawCapture.truncate(0)
+
+

@@ -1,6 +1,7 @@
 
 dict_sizes = {
 	1: 6.7,
+	#2: 6.7,
 	2: 6.7,
 	6: 6.7,
 	7: 6.7,
@@ -14,6 +15,21 @@ dict_sizes = {
 	36: 5, #face tresor vert
 	65: 5
  }
+
+
+'''
+FL	FR
+
+RL	RR
+'''
+#FL FR RL RR
+FL = 1
+FR = 2
+RL = 6
+RR = 7
+tagsOnRobot = [FL,FR,RL,RR]
+pairsTag = [[FR,FL],[RR,FR],[RL,RR],[FL,RL]]
+anglePairTag = [0,90,180,270]
 
 
 #BGR
