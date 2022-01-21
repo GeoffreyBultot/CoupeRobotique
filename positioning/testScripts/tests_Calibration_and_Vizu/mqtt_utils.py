@@ -58,7 +58,6 @@ def mqtt_pubData(ids,tvecs,rvecs):
 	
 	robotPose = findRobotCenter(ids,tvecs,rvecs)
 	#print(foundBot)
-	print(robotPose)
 	if(robotPose != False and robotPose != None ):
 		
 		x,y,a = robotPose
@@ -112,12 +111,13 @@ def findRobotCenter(ids,tvecs,rvecs):
 		#check si une paire de tags est détectée
 		for i in range(0,len(pairsTag)):
 			if(pairsTag[i][0] in foundTagsBot and pairsTag[i][1] in foundTagsBot):#Si on a trouvé 2 tags qui vont de paire
-					print("found bot wit pair [",pairsTag[i][0],",",pairsTag[i][1],"]")
+					#print("found bot wit pair [",pairsTag[i][0],",",pairsTag[i][1],"]")
 					idx_tag1 = ids.index(pairsTag[i][0])
 					idx_tag2 = ids.index(pairsTag[i][1])
 					x,y,a = getRobotPoseFrom2tags(tvecs[idx_tag1],tvecs[idx_tag2])
 					a = (a+anglePairTag[i])%360
-					print(x,y,a)
+					a = (180 - a) % 360
+					#print(150+x,125-y,a)
 					return x,y,a
 		#ici on va check si on trouve le bot avec juste un des tags
 	else:

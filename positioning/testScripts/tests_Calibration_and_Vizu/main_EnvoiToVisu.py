@@ -107,18 +107,32 @@ def changeReference(tvec,matrix):
 	tvec = np.vstack((tvec,[1]))
 	return (inv(matrix) * tvec)
 
-
+lastsTvecs42 = None
+lastsRvecs42 = None
 map1 = None
 map2 = None
+
+def moving_average(x, w):
+	return np.convolve(x, np.ones(w), 'valid') / w
+
 
 def initUndis():
 	global map1
 	global map2
 	map1, map2 = cv2.fisheye.initUndistortRectifyMap(K, D, np.eye(3), K, DIM, cv2.CV_16SC2)
 
+newFrame = None
+def ThreadCapture(theadID):
+	global newFrame
+	for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+		newFrame=frame_pi.array
+		rawCapture.truncate(0)
+
+
 if __name__ == '__main__':	
 	initClient()
-	print("[DEBUG	] Thread MQTT Started")
+	_thread.start_new_thread(ThreadCapture, (2 ,) )
+	#_thread.start_new_thread(ThreadConvertFrame, (2 ,) )
 	#new_K = cv2.fisheye.estimateNewCameraMatrixForUndistortRectify(K, D, DIM, np.eye(3), balance=1)
 	new_K = K
 	t1 = time.time()
@@ -127,59 +141,77 @@ if __name__ == '__main__':
 	parameters =  aruco.DetectorParameters_create()
 	M_Calib = None
 	t1 = time.time()
-	for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
-		frame=frame_pi.array
-		image_base = frame
-		frame = cv2.remap(frame, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
-		#cv2.fisheye.undistortImage(frame,K,D,frame,new_K,DIM)
-		gray = cv2.cvtColor((frame), cv2.COLOR_BGR2GRAY)
-		corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
-		frame = aruco.drawDetectedMarkers(frame, corners)
-		if ids is not None:
-			markers_tvec = []
-			markers_rvec = []
-			markers_ids = []
-			temp_tvecs = []
-			temp_rvecs = []
-			for i in range(0,len(ids)):
-				if(ids[i][0] in dict_sizes):
-					markerSizeInCM = dict_sizes[ids[i][0]]
-					rvec , tvec, _ = aruco.estimatePoseSingleMarkers(corners[i], markerSizeInCM, new_K, D)
-					#frame = cv2.aruco.drawAxis(frame,new_K, D, rvec, tvec, 10)
-					tvec = (tvec[0][0])
-					rvec =  (rvec[0][0])
-					if(ids[i][0]==42):
-						M_Calib = computeMcalibMatrix(rvec,tvec)
-						rotation,_ = cv2.Rodrigues(rvec)
-						rvec = rotationMatrixToEulerAngles(rotation)
-						#ComputeRotationOffteur(rvec)
-						rvec42 = rvec
-						tvec42 = tvec
-					temp_tvecs.append(tvec)
-					temp_rvecs.append(rvec)
-					
-			for i in range (0,len(temp_tvecs)):
-				tvec = temp_tvecs[i]
-				rvec = temp_rvecs[i]
-				if(ids[i][0] in dict_sizes):
-					if( ids[i][0] != 42 and M_Calib is not None):
-						rotation,_ = cv2.Rodrigues(rvec)
-						rvec = rotationMatrixToEulerAngles(rotation)
+	while(True):
+		if(newFrame is not None):
+			frame = cv2.remap(newFrame, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+			newFrame = None
+			#cv2.fisheye.undistortImage(frame,K,D,frame,new_K,DIM)
+			gray = cv2.cvtColor((frame), cv2.COLOR_BGR2GRAY)
+			corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
+			frame = aruco.drawDetectedMarkers(frame, corners)
+			if ids is not None:
+				markers_tvec = []
+				markers_rvec = []
+				markers_ids = []
+				temp_tvecs = []
+				temp_rvecs = []
+				for i in range(0,len(ids)):
+					if(ids[i][0] in dict_sizes):
+						markerSizeInCM = dict_sizes[ids[i][0]]
+						rvec , tvec, _ = aruco.estimatePoseSingleMarkers(corners[i], markerSizeInCM, new_K, D)
+						#frame = cv2.aruco.drawAxis(frame,new_K, D, rvec, tvec, 10)
+						tvec = (tvec[0][0])
+						rvec =  (rvec[0][0])
+						if(ids[i][0]==42):
+							nech = 20
+							if(lastsTvecs42 is None):
+								lastsTvecs42 = tvec
+								lastsRvecs42 = rvec
+							else:
+								lastsTvecs42 = np.vstack((lastsTvecs42,[tvec]))
+								lastsRvecs42 = np.vstack((lastsRvecs42,[rvec]))
+								if(len(lastsTvecs42) > nech):
+									lastsTvecs42 = np.delete(lastsTvecs42, 0,0)
+									lastsRvecs42 = np.delete(lastsRvecs42, 0,0)
+								#moyenne.append(rvec)
+							sum_tvec=np.array([0,0,0])
+							sum_rvec=np.array([0,0,0])
+							for i in range(0,len(lastsTvecs42)):
+								sum_tvec = np.add(sum_tvec,lastsTvecs42[i])
+								sum_rvec = np.add(sum_rvec,lastsRvecs42[i])
+							#tvec = sum_tvec/len(lastsTvecs42)
+							#rvec = sum_rvec/len(lastsRvecs42)
+							M_Calib = computeMcalibMatrix(rvec,tvec)
+							rotation,_ = cv2.Rodrigues(rvec)
+							rvec = rotationMatrixToEulerAngles(rotation)
+							#ComputeRotationOffteur(rvec)
+							rvec42 = rvec
+							tvec42 = tvec
+						temp_tvecs.append(tvec)
+						temp_rvecs.append(rvec)
 						
-					if(M_Calib is not None):
-						tvec = changeReference(tvec,M_Calib)
-						
-					markers_tvec.append( [tvec[0],tvec[1],tvec[2]])
-					rvec[2] = int(rvec[2])%360
-					markers_rvec.append( [rvec[0],rvec[1], rvec[2]])
-					markers_ids.append(ids[i])
-			#frame = cv2.resize(frame,(800,720))
-			#cv2.imshow("captured",frame)
-			
-			mqtt_pubData(markers_ids,markers_tvec,markers_rvec)
-			print(1/(time.time()-t1))
-			t1 = time.time()
+				for i in range (0,len(temp_tvecs)):
+					tvec = temp_tvecs[i]
+					rvec = temp_rvecs[i]
+					if(ids[i][0] in dict_sizes):
+						if( ids[i][0] != 42 and M_Calib is not None):
+							rotation,_ = cv2.Rodrigues(rvec)
+							rvec = rotationMatrixToEulerAngles(rotation)
+							
+						if(M_Calib is not None):
+							tvec = changeReference(tvec,M_Calib)
+							
+						markers_tvec.append( [tvec[0],tvec[1],tvec[2]])
+						rvec[2] = int(rvec[2])%360
+						markers_rvec.append( [rvec[0],rvec[1], rvec[2]])
+						markers_ids.append(ids[i])
+				#frame = cv2.resize(frame,(800,720))
+				#cv2.imshow("captured",frame)
+				
+				mqtt_pubData(markers_ids,markers_tvec,markers_rvec)
+				#print(1/(time.time()-t1))
+				t1 = time.time()
 		
-		rawCapture.truncate(0)
+		
 
 

@@ -29,7 +29,8 @@ RL = 6
 RR = 7
 tagsOnRobot = [FL,FR,RL,RR]
 pairsTag = [[FR,FL],[RR,FR],[RL,RR],[FL,RL]]
-anglePairTag = [0,90,180,270]
+#anglePairTag = [0,90,180,270]#avec 0 vers la droite
+anglePairTag = [270,0,90,180] #avec 0 face camera
 
 
 #BGR
