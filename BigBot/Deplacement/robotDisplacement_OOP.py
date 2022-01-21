@@ -156,7 +156,7 @@ if __name__ == '__main__':
             distance = [] #clear le tableau
             ret_array = []
             #if(JeanMichelDuma.approachTargetUsingRotation(coord_xyz,rz)):
-            if(JeanMichelDuma.setOrientation(0)):
+            if(JeanMichelDuma.goToSelfCamera(coord_xyz,rz)):
                 print("steaup")
                 JeanMichelDuma.stopMotors()
                 exit()

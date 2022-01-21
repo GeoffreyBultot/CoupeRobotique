@@ -71,6 +71,18 @@ class Arm():
             self.getch()
             quit()
 
+        
+    def isPortOpen(self):
+        return self.portHandler.is_open
+
+
+    def clearPort(self):
+        self.portHandler.clearPort()
+        
+    
+    def closePort(self):
+        self.portHandler.closePort()
+
     
     def setMaxTorqueId(self, uid, perc):
         max_torque = int((1023/100)*perc)

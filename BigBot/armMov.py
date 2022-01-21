@@ -9,7 +9,7 @@ arm = Arm()
 slotPositionDrop = [[47, 88, 55],
                     [62, 80, 50],
                     [80, 85, 30],
-                    [100, 65, 25]]
+                    [103, 65, 25]]
 
 slotPositionGrab = [[65, 50, 70],
                     [80, 55, 50],
@@ -82,7 +82,7 @@ def suckAndSetArmUpDistrib():
 
 def setSlotId(slot):
     arm.isInside = False
-    arm.MAX_OVERALL_SPEED = 10
+    arm.MAX_OVERALL_SPEED = 20
     if slot>=0:
         print("---------------\nSetting 1st")
         arm.setServosOurAngle(slotPositionDrop[0]) 
@@ -193,11 +193,9 @@ def setArmBotGallery():
     time.sleep(1)
 
 
-def dropGallery():
+'''def dropGallery():
     ventouse.drop()
-    print("---------------\nSetting Inside")
-    #arm.setServosOurAngle([32, 67, 80])
-    hideInside()
+    print("---------------\nSetting Inside")'''
 
 
 def setArmTopGallery():
@@ -251,6 +249,7 @@ def hideInside():
     arm.setServosOurAngle([45,90,90])
     time.sleep(0.2)
     arm.setServosOurAngle([90,92,92])
+    time.sleep(0.4)
     arm.MAX_OVERALL_SPEED = 20
     arm.isInside = True
 
@@ -276,6 +275,7 @@ def setOutsideFromInside():
 
         servo = ServoStock(13, 400, GPIO.BCM)
 
+        arm.setServosOurAngle([90,92,92])
         servo.setDefault()
         time.sleep(0.5)
         servo.stopPwm()
@@ -294,7 +294,7 @@ def setOutsideFromInside():
         for i in range(0, 4):
             grabElementSlot(i)
             setArmTopGallery()
-            dropGallery()
+            ventouse.drop()
 
         servo.setDefault()
 

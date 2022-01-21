@@ -76,8 +76,8 @@ if __name__ == '__main__':
             rvec_xyz = np.matmul(rotation_matrix, rvec) 
             euleurAngle = rotationMatrixToEulerAngles(rotation)
             dist = math.sqrt(coord_xyz[0]**2 + coord_xyz[1]**2)
-            #print("Dist = ", dist)
-            print("Euler = " ,euleurAngle[2])
+            print("Dist = ", dist)
+            #print("Euler = " ,euleurAngle[2])
             #print("XYZ = ",coord_xyz)
 
         cv2.imshow("LIVE FEED" ,frame)

@@ -12,7 +12,7 @@ dict_zones ={
 	"FouilleEquipe_Gauche":(1150,1375),
 	"FouilleEquipe_Dessus":(975,1200),
 	"FouilleEquipe_Bas":(975,1550),
-	"Start":(850,1050)
+	"Start":(820,1150)
 }
 #Strat1
 positionsToReach_1 = ["TresorVert","TresorRouge","TresorBleu"]

@@ -28,17 +28,17 @@ class Robot:
         'Fast' : 8,
     }
 
-
+   
     def __init__(self):
         
         self.positionX = 0
         self.positionY = 0
         self.orientationZ = 90
-        self.offsetX = 2
+        self.offsetX = 2.2
         self.offsetY = 5.2 #la camera est 5.2cm à droite du centre du robot
         self.offsetDistrib = 20
         self.deadBandY = 1
-        self.deadBandAngle = 8
+        self.deadBandAngle = 6
         self.reg = 0
         self.PORT = "/dev/tty_ARDUINO_USB"
         self.ser = serial.Serial (self.PORT, baudrate = 115200)
@@ -68,12 +68,10 @@ class Robot:
             if(self.ser.isOpen()):
                 self.ser.write(0)
                 self.ser.close()
+                self.ser = serial.Serial (self.PORT, baudrate = 115200)
             else:
                 self.ser.open() 
-    """ def serial_Thread():
-        while True:
-            print('[DEBUG	] Start thread reading serial')
-            client.loop_forever() """
+
 #endregion
 
 
@@ -89,17 +87,17 @@ class Robot:
         print("Target X = " + str(targetX) + "Target Y = " + str(targetY))
         print("Angle = " + str(targetAngle))
 
-        if(dist > 38):
+        if(dist > 25):
             self.approachTarget(targetX,targetY)
-            print("APPROACHING")
+            #print("APPROACHING")
 
         elif(angle_normalized > 30+self.deadBandAngle or angle_normalized <30 - self.deadBandAngle): #corrige l'angle
             self.speed = self.dict_speed['Slow']
             self.correctAngle(targetAngle)
-            print("RECTIFYING ANGLE")
+            #print("RECTIFYING ANGLE")
             
         elif(abs(targetY) > (self.deadBandY)): #s'aligne 
-            print("ALIGNING")
+            #print("ALIGNING")
             self.speed = self.dict_speed['Slow']
             if(targetY < 0):
                 self.goLeft()
@@ -110,10 +108,11 @@ class Robot:
                 self.speed = self.dict_speed['Medium']
             else:
                 self.speed = self.dict_speed['Slow']			
-            print("BRRRR")
+            #print("BRRRR")
             self.goForward()
         else: #arrived
             self.block()
+            #self.stopMotors()
             return 1
         return 0
     
@@ -145,7 +144,7 @@ class Robot:
             else:
                 self.goRight()
         else:
-            self.speed = self.dict_speed['Fast']
+            self.speed = self.dict_speed['Medium']
             self.goForward()
 
 
@@ -223,8 +222,13 @@ class Robot:
         return 1
 
     def setOrientation(self,angleToReach,offset_max_angle = 15):
-        self.speed = self.dict_speed['Slow']
+        #print("Angle to Reach = ",angleToReach)
+        #print("Robot Angle = ",self.orientationZ)
         angleToAchieve = ((angleToReach-self.orientationZ +540)%360)-180  #https://math.stackexchange.com/questions/110080/shortest-way-to-achieve-target-angle/2898118)
+        if(abs(angleToAchieve) > 15):
+            self.speed = self.dict_speed['Medium'] #si on doit faire un grand angle, on va vite
+        else:
+            self.speed = self.dict_speed['Slow']
         if(abs(angleToAchieve) > offset_max_angle):
             if(angleToAchieve  > 0):
                 self.rotationRight()
@@ -234,14 +238,102 @@ class Robot:
                 #print("left")
             return 0
         return 1
+    
+    def goToNewVersion(self,targetX,targetY):
+        deltaX = targetX -  self.positionX
+        deltaY = targetY -  self.positionY
+        arrived = 0
+        #print("deltaX =", deltaX)
+        #print("deltaY =", deltaY)
+        if(self.setOrientationForTranslation()): #on est aligné c'est bon
+            if(deltaY > 5):
+                self.translateOnYAxis(1)
+            elif(deltaY < -5):
+                self.translateOnYAxis(0)
+            elif(deltaX > 5):
+                self.translateOnXAxis(1)
+            elif(deltaX < -5):
+                self.translateOnXAxis(0)
+            else:
+                arrived = 1
+        return arrived
+        
 
             
+    def translateOnXAxis(self,dir): #if dir = 1 X augmente, sinon X diminue
+        self.speed = self.dict_speed['Medium']
+        cadran = round(self.orientationZ / 90)
+        angle = cadran*90
+        print("Angle dans la fct translate ", angle)
+        if (angle == 90 ):
+            print("Dir 90")
+            if(dir):
+                self.goForward()
+            else:
+                self.goBackward()
+        elif (angle == 180 ):
+            print("Dir 180")
+            if(dir):
+                self.goLeft()
+            else:
+                self.goRight()
+        elif (angle == 270 ):
+            print("Dir 270")
+            if(dir):
+                self.goBackward()
+            else:
+                self.goForward()
+        elif (angle == 0 or angle == 360 ):
+            print("Dir 0")
+            if(dir):
+                self.goRight()
+            else:
+                self.goLeft()
+    
+    def translateOnYAxis(self,dir):
+        self.speed = self.dict_speed['Medium']
+        cadran = round(self.orientationZ / 90)
+        angle = cadran*90
+        if(angle == 90):
+            if(dir):
+                self.goRight()
+            else:
+                self.goLeft()
+        if(angle == 180):
+            if(dir):
+                self.goForward()
+            else:
+                self.goBackward()
+        if(angle == 270):
+            if(dir):
+                self.goLeft()
+            else:
+                self.goLeft()
+        if(angle == 0 or angle == 360):
+            if(dir):
+                self.goBackward()
+            else:
+                self.goForward()
+
+    def setOrientationForTranslation(self):
+        cadran = self.orientationZ // 90
+        angleToDir = self.orientationZ % 90
+        if(angleToDir < 45):
+            print("Target = ", cadran*90)
+            if(self.setOrientation(cadran * 90,6)):
+                return 1
+        else:
+            print("Target = ", (1+cadran)*90)
+            if(self.setOrientation((cadran+1) * 90,6)):
+                return 1
+        return 0
         
      
 
 #endregion
 
 #region DEBUG
+
 
     def goToDebugAligned(self,targetX,targetY, offset_max_distance_x = 15,offset_max_distance_y = 5):
         deltaX = self.positionX - targetX
@@ -271,6 +363,7 @@ class Robot:
                 time.sleep(1)
 
     def debugDirections(self):
+        self.speed = self.dict_speed['Medium']
         while(True):
             for key in self.dict:
                 self.reg = self.dict[key]
@@ -298,12 +391,6 @@ class Robot:
         self.serialWriteReg()
     def goRight(self):
         self.reg = self.dict['right']
-        self.serialWriteReg()
-    def diagLeft(self):
-        self.reg = self.dict['diagLeft']
-        self.serialWriteReg()
-    def diagRight(self):
-        self.reg = self.dict['diagRight']
         self.serialWriteReg()
     def block(self):
         self.reg = self.dict['block']

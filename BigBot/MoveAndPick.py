@@ -1,5 +1,6 @@
 #!/usr/bin/python
 from Deplacement.Robot import *
+from Deplacement.Zones_Strategy import dict_zones
 from armMov import *
 import numpy as np
 import cv2
@@ -9,8 +10,38 @@ from cv2 import aruco
 import math
 import threading
 import _thread
+import paho.mqtt.client as mqtt
+import json
+
 
 from queue import Queue
+
+def on_connect(client, userdata, flags, rc):
+    if rc==0:
+        print("connected OK Returned code=",rc)
+        client.subscribe(TOPIC_BIG_BOT)
+    else:
+        print("Bad connection Returned code=",rc)
+
+
+def on_message(client, userdata, message):
+    global JeanMichelDuma
+    msg = message.payload.decode("utf-8")
+    msg = json.loads(msg)
+    if(message.topic == TOPIC_BIG_BOT):
+        JeanMichelDuma.positionX = msg["x"]
+        JeanMichelDuma.positionY = msg["y"]
+        JeanMichelDuma.orientationZ = msg["rz"]
+        #print(f"Robot : X =  {JeanMichelDuma.positionX}, Y = {JeanMichelDuma.positionY}, RZ = {JeanMichelDuma.orientationZ}")
+
+
+def data_Thread(theadID):
+    while True:
+        print('[DEBUG	] Connecting to the TTN Broker...')
+        #client.connect("192.168.0.13", 1883, 60)
+        print(client.connect(C_IP_MQTT, 1883, 60))
+        client.loop_forever()
+
 
 # Calculates rotation matrix to euler angles
 # The result is the same as MATLAB except the order
@@ -60,6 +91,12 @@ def changeXYZ(xyz):
     temp = [-xyz[1],xyz[0], xyz[2] ]
     return temp
 
+def numberOfItemInStockage():
+    n = 0
+    for i in range(0, len(stockageArray)):
+        if stockageArray[i] == True:
+            n += 1
+    return n
 
 def isStockageFull():
     for i in range(0, len(stockageArray)):
@@ -71,6 +108,8 @@ def isStockageFull():
 
 def grabItem(posElement):
     global isArmMoving
+
+    print(numberOfItemInStockage())
 
     isArmMoving = True
     if posElement == "GND":
@@ -108,7 +147,7 @@ def storeItem():
             return True
 
 
-def loopDrivingUntilFound():
+def loopDrivingUntilFound(pos_el):
     global isArmMoving
 
     #camera = PiCamera()
@@ -140,7 +179,6 @@ def loopDrivingUntilFound():
                     ret = ret_array[i]
                     (rvec, tvec) = (ret[0][0, 0, :], ret[1][0, 0, :])
                     distance.append(calculateDistance(tvec))
-                #print("Distzncer brr :", distance)
                 min_dist = min(distance)
                 index = distance.index(min_dist)
                 ret = ret_array[index]
@@ -152,14 +190,13 @@ def loopDrivingUntilFound():
                 coord_xyz = np.matmul(rotation_matrix, tvec)
                 coord_xyz = changeXYZ(coord_xyz)
                 #print(coord_xyz)
-                #print(rz)
+                print("rz :", rz)
                 distance = [] #clear le tableau
                 ret_array = []
-                if(JeanMichelDuma.approachTargetUsingRotation(coord_xyz,rz)):
+                if pos_el == "GND":
                     if(JeanMichelDuma.goToSelfCamera(coord_xyz,rz)):
                         print("steaup")
-                        #camera.close()
-                        return True  
+                        return "GND"  
             else:
                 print("Not detected")
                 if not isArmMoving:
@@ -170,25 +207,35 @@ def loopDrivingUntilFound():
 
         cv2.destroyAllWindows()
         
-        #camera.close()
-        
 
 def main():
     initUndis()
+    MQQT_thread = threading.Thread(target=data_Thread, args=(42,))
+    MQQT_thread.start()
+    print("[DEBUG	] Thread MQTT Started")
     try:
         arm.setServosOurAngle([90,92,92])
-        loopDrivingUntilFound()
+        targetX = dict_zones['Start'][0] / 10
+        targetY = dict_zones['Start'][1] / 10
+        while(not JeanMichelDuma.goToNewVersion(targetX,targetY)):
+            pass
+        while(not JeanMichelDuma.setOrientation(30,10)):
+            pass
+        res_drive = loopDrivingUntilFound("GND")
+        print("res_drive1 :", res_drive)
         grabItem("GND")
 
-        while isCodeRunning and not isStockageFull():
-            arm_thread = threading.Thread(target=lambda q, arg1: q.put(storeItem(arg1)), args=(que,))
+        while numberOfItemInStockage() < 3 :
+            arm_thread = threading.Thread(target=lambda q: q.put(storeItem()), args=(que,))
             arm_thread.start()
 
             #driveThread = threading.Thread(target=loopDrivingUntilFound, args=())
-            drive_thread = threading.Thread(target=lambda q, arg1: q.put( loopDrivingUntilFound(arg1)), args=(que,))
+            drive_thread = threading.Thread(target=lambda q, arg1: q.put( loopDrivingUntilFound(arg1)), args=(que,"GND"))
             drive_thread.start()
 
             arm_thread.join()
+            res_arm = que.get()
+            print("res_arm :", res_arm)
 
             if drive_thread.is_alive():
                 hideInside()
@@ -198,6 +245,15 @@ def main():
             print("res_drive :", res_drive)
             
             grabItem("GND")
+
+        targetX = dict_zones['Galerie_Rouge'][0] / 10
+        targetY = dict_zones['Galerie_Rouge'][1] / 10
+        while(True):
+            if(JeanMichelDuma.goToNewVersion(targetX,targetY)):
+                print("steaup")
+                JeanMichelDuma.stopMotors()
+                exit()
+
 
         
     except KeyboardInterrupt:
@@ -246,5 +302,11 @@ servo = ServoStock(13, 400, GPIO.BCM)
 
 servo.setDefault()
 servo.stopPwm()
+
+TOPIC_BIG_BOT = "BigBot/2"
+C_IP_MQTT = "172.30.40.68"
+client = mqtt.Client()
+client.on_connect = on_connect
+client.on_message = on_message
 
 main()

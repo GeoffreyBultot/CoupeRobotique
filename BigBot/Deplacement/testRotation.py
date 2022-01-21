@@ -56,6 +56,7 @@ def data_Thread(theadID):
 if __name__ == '__main__':
     JeanMichelDuma = Robot()
     JeanMichelDuma.DEBUG = 0
+    JeanMichelDuma.orientationZ = 30
     _thread.start_new_thread( data_Thread, (1 ,) )
     print("[DEBUG	] Thread MQTT Started")
     client.on_connect = on_connect
@@ -63,22 +64,23 @@ if __name__ == '__main__':
     JeanMichelDuma.speed = JeanMichelDuma.dict_speed['Slow']
     targetX = dict_zones['Start'][0] / 10
     targetY = dict_zones['Start'][1] / 10
-    print(f"fTarget = {targetX} , {targetY}")
+    print(f"Target = {targetX} , {targetY}")
     targetAngle = 30
+    time.sleep(2)
     while(True):
         try:
-            #if(JeanMichelDuma.setOrientation(340)): test la rotation
-            if(JeanMichelDuma.goToUsingLocation(targetX,targetY,targetAngle)):
-                if(JeanMichelDuma.setOrientation(targetAngle,12)): #met la bonne orientation
-                    print("Arrived, set Orientation")
-                    print("steaup")
-                    JeanMichelDuma.stopMotors()
-                    exit()
+            if(JeanMichelDuma.goToNewVersion(105,40)):
+                print("steaup")
+                JeanMichelDuma.stopMotors()
+                exit()
             else:
-                time.sleep(0.05)
+                print('--------------------------------\n')
+                time.sleep(0.01)
                 #print("Not detected")
                 #JeanMichelDuma.stopMotors()
         except:
+            e = sys.exc_info()[0]
+            print(e)
             JeanMichelDuma.stopMotors()
             exit()
 
