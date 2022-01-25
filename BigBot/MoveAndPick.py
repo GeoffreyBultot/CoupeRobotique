@@ -36,6 +36,10 @@ def on_message(client, userdata, message):
 
 
 def data_Thread(theadID):
+    C_IP_MQTT = "172.30.40.68"
+    client = mqtt.Client()
+    client.on_connect = on_connect
+    client.on_message = on_message
     while True:
         print('[DEBUG	] Connecting to the TTN Broker...')
         #client.connect("192.168.0.13", 1883, 60)
@@ -197,15 +201,24 @@ def loopDrivingUntilFound(pos_el):
                     if(JeanMichelDuma.goToSelfCamera(coord_xyz,rz)):
                         print("steaup")
                         return "GND"  
-            else:
+            '''else:
                 print("Not detected")
                 if not isArmMoving:
                     JeanMichelDuma.speed = JeanMichelDuma.dict_speed['Medium']
-                    JeanMichelDuma.rotationLeft()
+                    JeanMichelDuma.rotationLeft()'''
 
             rawCapture.truncate(0)
 
         cv2.destroyAllWindows()
+
+
+def campementBrr():
+    while(not JeanMichelDuma.goToNewVersion(CampementX,CampementY,2)):
+        pass
+
+def flexBrr():
+    for i in range(0, 25):
+        flex()
         
 
 def main():
@@ -214,19 +227,31 @@ def main():
     MQQT_thread.start()
     print("[DEBUG	] Thread MQTT Started")
     try:
-        arm.setServosOurAngle([90,92,92])
         
         while(not JeanMichelDuma.goToNewVersion(StartX,StartY)): #va a la position de départ
             pass
-        while(not JeanMichelDuma.setOrientation(30,15)): #s'oriente pour les tag
+        while(not JeanMichelDuma.setOrientation(40,9)): #s'oriente pour les tag
             pass
         res_drive = loopDrivingUntilFound("GND")
         print("res_drive1 :", res_drive)
         grabItem("GND")
 
-        while numberOfItemInStockage() < 3 :
+        while True:#numberOfItemInStockage() < 3:
             arm_thread = threading.Thread(target=lambda q: q.put(storeItem()), args=(que,))
             arm_thread.start()
+            
+            if numberOfItemInStockage() == 2:
+                arm_thread.join()
+                res_arm = que.get()
+
+                hideOutside()
+                servo.setReverse()
+                time.sleep(0.5)
+                servo.stopPwm()
+                time.sleep(0.5)
+                print("Hiding Inside")
+                hideInside()
+                break
 
             #driveThread = threading.Thread(target=loopDrivingUntilFound, args=())
             drive_thread = threading.Thread(target=lambda q, arg1: q.put( loopDrivingUntilFound(arg1)), args=(que,"GND"))
@@ -237,7 +262,8 @@ def main():
             print("res_arm :", res_arm)
 
             if drive_thread.is_alive():
-                hideInside()
+                arm.setServosOurAngle([90,92,92])
+                #hideInside()
                 drive_thread.join()
 
             res_drive = que.get() 
@@ -245,18 +271,52 @@ def main():
             
             grabItem("GND")
 
+        while(not JeanMichelDuma.setOrientation(0,5)):
+            pass
         
-        while(JeanMichelDuma.goToNewVersion(GallerieRougeX,GallerieRougeY)):
-            pass
-        while(JeanMichelDuma.setOrientation(0)):
-            pass
-        print("steaup")
+        JeanMichelDuma.stopMotors()
+        
+        for i in range(0, 4):
+            if i == 0:
+                while(not JeanMichelDuma.goToNewVersion(GallerieRougeX,GallerieRougeY,2)):
+                    pass
+            elif i == 1:
+                while(not JeanMichelDuma.goToNewVersion(GallerieVertX,GallerieVertY,2)):
+                    pass
+            elif i == 2:
+                while(not JeanMichelDuma.goToNewVersion(GallerieBleuX,GallerieBleuY,2)):
+                    pass
+            elif i== 3:
+                break
+
+            while(not JeanMichelDuma.setOrientation(0,2)):
+                pass
+
+            JeanMichelDuma.stopMotors()
+
+            grabElementSlot(i)
+            setArmBotGallery()
+            ventouse.drop()
+            setupAfterGrab()
+        
+        print("steaup final")
+
+        drive_thread = threading.Thread(target=lambda q: q.put(campementBrr()), args=(que,))
+        drive_thread.start()
+
+        flex_thread = threading.Thread(target=lambda q: q.put(flexBrr()), args=(que,))
+        flex_thread.start()
+
+        drive_thread.join()
+        flex_thread.join()
+
         arm.disableTorqueAll()
         JeanMichelDuma.stopMotors()
         servo.stopPwm()
+        servo.setDefault()
+        time.sleep(1)
+        servo.stopPwm()
         exit()
-            
-
 
         
     except KeyboardInterrupt:
@@ -272,6 +332,8 @@ x
 0----->y
  """
 
+TOPIC_BIG_BOT = "BigBot/2"
+
 StartX = dict_zones['Start'][0] / 10
 StartY = dict_zones['Start'][1] / 10
 GallerieRougeX = dict_zones['Galerie_Rouge'][0] / 10
@@ -280,6 +342,9 @@ GallerieVertX = dict_zones['Galerie_Vert'][0] / 10
 GallerieVertY = dict_zones['Galerie_Vert'][1] / 10
 GallerieBleuX = dict_zones['Galerie_Bleu'][0] / 10
 GallerieBleuY = dict_zones['Galerie_Bleu'][1] / 10
+
+CampementX = dict_zones['Campement'][0] / 10
+CampementY = dict_zones['Campement'][1] / 10
 
 
 team = "Y" #"P"
@@ -310,16 +375,18 @@ arm.enableTorqueAll()
 arm.setMaxTorqueAll(100)
 arm.setTorqueLimitAll(100)
 arm.MAX_OVERALL_SPEED = 20
+arm.setServosOurAngle([90,92,92])
 
 servo = ServoStock(13, 400, GPIO.BCM)
 
+'''servo.setDefault()
+time.sleep(1)
+servo.setReverse()
+time.sleep(1)'''
 servo.setDefault()
+time.sleep(1)
 servo.stopPwm()
+time.sleep(1)
 
-TOPIC_BIG_BOT = "BigBot/2"
-C_IP_MQTT = "172.30.40.68"
-client = mqtt.Client()
-client.on_connect = on_connect
-client.on_message = on_message
 
 main()

@@ -1,8 +1,8 @@
 dict_zones ={
 	"tag42_Abs": (1500,1250),
-	"Galerie_Bleu":(570,85),
-	"Galerie_Vert":(810,85),
-	"Galerie_Rouge":(1050,85),
+	"Galerie_Bleu":(590,270),
+	"Galerie_Vert":(820,280),
+	"Galerie_Rouge":(1070,290),
 	"TresorBleu":(900,555),
 	"TresorVert":(830,675),
 	"TresorRouge":(900,795),
@@ -12,7 +12,8 @@ dict_zones ={
 	"FouilleEquipe_Gauche":(1150,1375),
 	"FouilleEquipe_Dessus":(975,1200),
 	"FouilleEquipe_Bas":(975,1550),
-	"Start":(820,1150)
+	"Start":(750,1150),
+	"Campement":(180,800)
 }
 #Strat1
 positionsToReach_1 = ["TresorVert","TresorRouge","TresorBleu"]

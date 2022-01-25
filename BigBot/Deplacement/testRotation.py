@@ -57,11 +57,11 @@ if __name__ == '__main__':
     JeanMichelDuma = Robot()
     JeanMichelDuma.DEBUG = 0
     JeanMichelDuma.orientationZ = 30
-    _thread.start_new_thread( data_Thread, (1 ,) )
+    """ _thread.start_new_thread( data_Thread, (1 ,) )
     print("[DEBUG	] Thread MQTT Started")
     client.on_connect = on_connect
     client.on_message = on_message
-    #JeanMichelDuma.speed = JeanMichelDuma.dict_speed['Medium']
+ """    #JeanMichelDuma.speed = JeanMichelDuma.dict_speed['Medium']
     targetX = dict_zones['Start'][0] / 10
     targetY = dict_zones['Start'][1] / 10
     print(f"Target = {targetX} , {targetY}")
@@ -69,12 +69,19 @@ if __name__ == '__main__':
     time.sleep(.5)
     while(True):
         try:
-            JeanMichelDuma.goLeft(5000)
-            time.sleep(5)
-            JeanMichelDuma.goRight(2500)
-            time.sleep(5)
+            JeanMichelDuma.goForward()
+            time.sleep(2)
+            JeanMichelDuma.goLeft(10000)
+            JeanMichelDuma.goRight(10000)
+            JeanMichelDuma.goForward(10000)
+            JeanMichelDuma.goBackward(10000)
+            JeanMichelDuma.goForward()
+            time.sleep(0.5)
+            JeanMichelDuma.goBackward(10000)
+            time.sleep(1)
             #if(JeanMichelDuma.goToNewVersion(targetX,targetY)):
             print("steaup")
+            time.sleep(2)
             JeanMichelDuma.stopMotors()
             exit()
             """ else:

@@ -5,6 +5,7 @@ import sys
 import numpy as np
 from utils import computeDict,_set_motor,getDistance
 
+
 #TODO Calibration avec item dans le chasse neige
 
 """ 
@@ -14,7 +15,7 @@ x
 |
 0----->y
  """
-#region Création objet
+#region Cr�ation objet
 
 
 
@@ -34,8 +35,8 @@ class Robot:
         self.positionX = 0
         self.positionY = 0
         self.orientationZ = 90
-        self.offsetX = 2.2
-        self.offsetY = 5.2 #la camera est 5.2cm à droite du centre du robot
+        self.offsetX = 2.5
+        self.offsetY = 5.2 #la camera est 5.2cm � droite du centre du robot
         self.offsetDistrib = 20
         self.deadBandY = 1
         self.deadBandAngle = 7
@@ -69,7 +70,7 @@ class Robot:
                 LSB = arrayofBytes[1]
                 array = [start,cmd,reg,MSB,LSB,stop]
                 print(array)
-            message = bytearray(array)      	
+            message = bytearray(array)   	
             self.ser.write(message)
         except:
             e = sys.exc_info()[0]
@@ -80,13 +81,12 @@ class Robot:
                 self.ser = serial.Serial (self.PORT, baudrate = 115200)
             else:
                 self.ser.open() 
-
 #endregion
 
 
 #region NEW CODE
 
-    def goToSelfCamera(self,targetXYZ,targetAngle): #return 1 si on est arrivé, sinon 0
+    def goToSelfCamera(self,targetXYZ,targetAngle): #return 1 si on est arriv�, sinon 0
         targetX = targetXYZ[0]
         targetY = targetXYZ[1]
         targetY = targetY + self.offsetY
@@ -128,7 +128,7 @@ class Robot:
     def correctAngle(self,angle):
         angle = angle %360
         angle = angle % 120
-        if(angle >= 60): #sélectionne un des 2 cote
+        if(angle >= 60): #s�lectionne un des 2 cote
             if(angle > 90):
                 print("RotateRight")
                 self.rotationRight()
@@ -145,7 +145,7 @@ class Robot:
             
 
         
-    def approachTarget(self,targetX,targetY): #s'approche de la position en s'alignant d'abord en Y et puis en avançant
+    def approachTarget(self,targetX,targetY): #s'approche de la position en s'alignant d'abord en Y et puis en avan�ant
         if(abs(targetY) > (self.deadBandY + 0.4*targetX)):
             self.speed = self.dict_speed['Medium']
             if(targetY < 0):
@@ -188,7 +188,7 @@ class Robot:
 
             
         
-    def goToUsingLocation(self,targetX,targetY, targetAngle): #TODO translater quand on est aligné* Rotate until I see tag ENT ENTENT
+    def goToUsingLocation(self,targetX,targetY, targetAngle): #TODO translater quand on est align�* Rotate until I see tag ENT ENTENT
         offset_max_distance = 8
         deltaX = self.positionX - targetX
         deltaY = self.positionY - targetY
@@ -206,7 +206,7 @@ class Robot:
         print("Angle To Target = " + str(angleToTarget))
         print("Current pos X,Y = " + str(self.positionX) + " , " + str(self.positionY))
         if(distance > offset_max_distance):
-            if(self.setOrientation(angleToTarget)): #si ça return 1 c'est que la rotation est OK
+            if(self.setOrientation(angleToTarget)): #si �a return 1 c'est que la rotation est OK
                 self.speed = self.dict_speed['Medium'] #donc on peut avancer
                 print("Forward")
                 self.goForward()
@@ -234,7 +234,7 @@ class Robot:
         #print("Angle to Reach = ",angleToReach)
         #print("Robot Angle = ",self.orientationZ)
         angleToAchieve = ((angleToReach-self.orientationZ +540)%360)-180  #https://math.stackexchange.com/questions/110080/shortest-way-to-achieve-target-angle/2898118)
-        if(abs(angleToAchieve) > 15):
+        if(abs(angleToAchieve) > 25):
             self.speed = self.dict_speed['Medium'] #si on doit faire un grand angle, on va vite
         else:
             self.speed = self.dict_speed['Slow']
@@ -248,23 +248,24 @@ class Robot:
             return 0
         return 1
     
-    def goToNewVersion(self,targetX,targetY):
+    def goToNewVersion(self,targetX,targetY,offset = 5):
         deltaX = targetX -  self.positionX
         deltaY = targetY -  self.positionY
         arrived = 0
         #print("deltaX =", deltaX)
         #print("deltaY =", deltaY)
-        if(self.setOrientationForTranslation()): #on est aligné c'est bon
-            if(deltaY > 5):
+        if(self.setOrientationForTranslation()): #on est align� c'est bon
+            if(deltaY > offset):
                 self.translateOnYAxis(1)
-            elif(deltaY < -5):
+            elif(deltaY < -offset):
                 self.translateOnYAxis(0)
-            elif(deltaX > 5):
+            elif(deltaX > offset):
                 self.translateOnXAxis(1)
-            elif(deltaX < -5):
+            elif(deltaX < -offset):
                 self.translateOnXAxis(0)
             else:
                 arrived = 1
+                self.stopMotors()
         return arrived
         
 
@@ -273,27 +274,22 @@ class Robot:
         self.speed = self.dict_speed['Medium']
         cadran = round(self.orientationZ / 90)
         angle = cadran*90
-        print("Angle dans la fct translate ", angle)
         if (angle == 90 ):
-            print("Dir 90")
             if(dir):
                 self.goForward()
             else:
                 self.goBackward()
         elif (angle == 180 ):
-            print("Dir 180")
             if(dir):
                 self.goLeft()
             else:
                 self.goRight()
         elif (angle == 270 ):
-            print("Dir 270")
             if(dir):
                 self.goBackward()
             else:
                 self.goForward()
         elif (angle == 0 or angle == 360 ):
-            print("Dir 0")
             if(dir):
                 self.goRight()
             else:
@@ -328,12 +324,10 @@ class Robot:
         cadran = self.orientationZ // 90
         angleToDir = self.orientationZ % 90
         if(angleToDir < 45):
-            print("Target = ", cadran*90)
-            if(self.setOrientation(cadran * 90,8)):
+            if(self.setOrientation(cadran * 90,10)):
                 return 1
         else:
-            print("Target = ", (1+cadran)*90)
-            if(self.setOrientation((cadran+1) * 90,8)):
+            if(self.setOrientation((cadran+1) * 90,10)):
                 return 1
         return 0
         
@@ -380,6 +374,15 @@ class Robot:
                 self.serialWriteReg()
                 time.sleep(3)
             
+    def debugDirections(self):
+            self.speed = self.dict_speed['Medium']
+            while(True):
+                for key in self.dict:
+                    self.reg = self.dict[key]
+                    print(key, '->', self.dict[key])
+                    self.serialWriteReg()
+                    time.sleep(3)
+                
     def goForward(self,steps = 0):
         self.reg = self.dict['forward']
         if(steps != 0):
@@ -428,5 +431,4 @@ class Robot:
             self.serialWriteReg(self.cmdStep,steps)
         else:
             self.serialWriteReg(self.cmdNormal)
-
 

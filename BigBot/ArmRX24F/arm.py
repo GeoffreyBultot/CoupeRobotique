@@ -329,19 +329,16 @@ class Arm():
 
 
 '''armTest = Arm()
-armTest.enableTorqueAll()
-#armTest.disableTorqueAll()
+armTest.disableTorqueAll()
 #armTest.setMaxTorqueAll(100)
 #armTest.setTorqueLimitAll(100)
+pos = [0, 0, 0]
 try:
-    armTest.setServoOurAngle(0, 0)
-    armTest.setServoOurAngle(1, 0)
-    armTest.setServoOurAngle(2, 0)
     while 1:
-        uid = int(input("Servo ID :\n"))
-        angle = float(input("(0) our Angle position :\n"))
-        armTest.setServoOurAngle(uid, angle)
+        for i in range(0, armTest.NBR_SERVO):
+            pos[i] = armTest.readServoIdPos(i)
 
-        pass
+        print("Pos :")
+        time.sleep(1)
 except KeyboardInterrupt:
         armTest.disableTorqueAll()'''
