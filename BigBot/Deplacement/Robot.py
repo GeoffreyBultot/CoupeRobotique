@@ -3,7 +3,7 @@ import math
 import time
 import sys
 import numpy as np
-from .utils import computeDict,_set_motor,getDistance
+from utils import computeDict,_set_motor,getDistance
 
 #TODO Calibration avec item dans le chasse neige
 
@@ -38,13 +38,15 @@ class Robot:
         self.offsetY = 5.2 #la camera est 5.2cm à droite du centre du robot
         self.offsetDistrib = 20
         self.deadBandY = 1
-        self.deadBandAngle = 6
+        self.deadBandAngle = 7
         self.reg = 0
         self.PORT = "/dev/tty_ARDUINO_USB"
         self.ser = serial.Serial (self.PORT, baudrate = 115200)
         self.DEBUG = True
         self.dict = computeDict()
         self.speed = self.dict_speed['Very slow']
+        self.cmdStep = 0x01
+        self.cmdNormal = 0x02
         #self.posArray = self.initArray
         #_thread.start_new_thread( data_Thread, (1 , ) )
 
@@ -53,14 +55,21 @@ class Robot:
             self.ser.close()
         self.ser = serial.Serial(port,baudrate) 
 
-    def serialWriteReg(self):
+    def serialWriteReg(self,cmd,steps = 0):
         try: 
             start = 123 #start byte
-            reg = self.reg
-            divPWM = self.speed
             stop = 253 #steaupent byte
-            array = [start,reg,divPWM,stop]
-            message = bytearray(array)	
+            reg = self.reg
+            if(cmd == self.cmdNormal):           
+                divPWM = self.speed   
+                array = [start,cmd,reg,0,divPWM,stop]
+            elif(cmd == self.cmdStep):
+                arrayofBytes = steps.to_bytes(2,'big') #split les steps en 2 byte
+                MSB = arrayofBytes[0]
+                LSB = arrayofBytes[1]
+                array = [start,cmd,reg,MSB,LSB,stop]
+                print(array)
+            message = bytearray(array)      	
             self.ser.write(message)
         except:
             e = sys.exc_info()[0]
@@ -320,11 +329,11 @@ class Robot:
         angleToDir = self.orientationZ % 90
         if(angleToDir < 45):
             print("Target = ", cadran*90)
-            if(self.setOrientation(cadran * 90,6)):
+            if(self.setOrientation(cadran * 90,8)):
                 return 1
         else:
             print("Target = ", (1+cadran)*90)
-            if(self.setOrientation((cadran+1) * 90,6)):
+            if(self.setOrientation((cadran+1) * 90,8)):
                 return 1
         return 0
         
@@ -371,29 +380,53 @@ class Robot:
                 self.serialWriteReg()
                 time.sleep(3)
             
-    def goForward(self):
+    def goForward(self,steps = 0):
         self.reg = self.dict['forward']
-        self.serialWriteReg()
-    def goBackward(self):
+        if(steps != 0):
+            self.serialWriteReg(self.cmdStep,steps)
+        else:
+            self.serialWriteReg(self.cmdNormal)
+    def goBackward(self,steps = 0):
         self.reg = self.dict['backward']
-        self.serialWriteReg()
-    def stopMotors(self):
+        if(steps != 0):
+            self.serialWriteReg(self.cmdStep,steps)
+        else:
+            self.serialWriteReg(self.cmdNormal)
+    def stopMotors(self,steps = 0):
         self.reg = self.dict['stop']
-        self.serialWriteReg()
-    def rotationRight(self):
+        if(steps != 0):
+            self.serialWriteReg(self.cmdStep,steps)
+        else:
+            self.serialWriteReg(self.cmdNormal)
+    def rotationRight(self,steps = 0):
         self.reg = self.dict['rotationRight']
-        self.serialWriteReg()
-    def rotationLeft(self):
+        if(steps != 0):
+            self.serialWriteReg(self.cmdStep,steps)
+        else:
+            self.serialWriteReg(self.cmdNormal)
+    def rotationLeft(self,steps = 0):
         self.reg = self.dict['rotationLeft']
-        self.serialWriteReg()
-    def goLeft(self):
+        if(steps != 0):
+            self.serialWriteReg(self.cmdStep,steps)
+        else:
+            self.serialWriteReg(self.cmdNormal)
+    def goLeft(self,steps = 0):
         self.reg = self.dict['left']
-        self.serialWriteReg()
-    def goRight(self):
+        if(steps != 0):
+            self.serialWriteReg(self.cmdStep,steps)
+        else:
+            self.serialWriteReg(self.cmdNormal)
+    def goRight(self,steps = 0):
         self.reg = self.dict['right']
-        self.serialWriteReg()
-    def block(self):
+        if(steps != 0):
+            self.serialWriteReg(self.cmdStep,steps)
+        else:
+            self.serialWriteReg(self.cmdNormal)
+    def block(self,steps = 0):
         self.reg = self.dict['block']
-        self.serialWriteReg()
+        if(steps != 0):
+            self.serialWriteReg(self.cmdStep,steps)
+        else:
+            self.serialWriteReg(self.cmdNormal)
 
 

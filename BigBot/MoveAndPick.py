@@ -215,11 +215,10 @@ def main():
     print("[DEBUG	] Thread MQTT Started")
     try:
         arm.setServosOurAngle([90,92,92])
-        targetX = dict_zones['Start'][0] / 10
-        targetY = dict_zones['Start'][1] / 10
-        while(not JeanMichelDuma.goToNewVersion(targetX,targetY)):
+        
+        while(not JeanMichelDuma.goToNewVersion(StartX,StartY)): #va a la position de départ
             pass
-        while(not JeanMichelDuma.setOrientation(30,10)):
+        while(not JeanMichelDuma.setOrientation(30,15)): #s'oriente pour les tag
             pass
         res_drive = loopDrivingUntilFound("GND")
         print("res_drive1 :", res_drive)
@@ -246,13 +245,17 @@ def main():
             
             grabItem("GND")
 
-        targetX = dict_zones['Galerie_Rouge'][0] / 10
-        targetY = dict_zones['Galerie_Rouge'][1] / 10
-        while(True):
-            if(JeanMichelDuma.goToNewVersion(targetX,targetY)):
-                print("steaup")
-                JeanMichelDuma.stopMotors()
-                exit()
+        
+        while(JeanMichelDuma.goToNewVersion(GallerieRougeX,GallerieRougeY)):
+            pass
+        while(JeanMichelDuma.setOrientation(0)):
+            pass
+        print("steaup")
+        arm.disableTorqueAll()
+        JeanMichelDuma.stopMotors()
+        servo.stopPwm()
+        exit()
+            
 
 
         
@@ -268,6 +271,16 @@ x
 |
 0----->y
  """
+
+StartX = dict_zones['Start'][0] / 10
+StartY = dict_zones['Start'][1] / 10
+GallerieRougeX = dict_zones['Galerie_Rouge'][0] / 10
+GallerieRougeY = dict_zones['Galerie_Rouge'][1] / 10
+GallerieVertX = dict_zones['Galerie_Vert'][0] / 10
+GallerieVertY = dict_zones['Galerie_Vert'][1] / 10
+GallerieBleuX = dict_zones['Galerie_Bleu'][0] / 10
+GallerieBleuY = dict_zones['Galerie_Bleu'][1] / 10
+
 
 team = "Y" #"P"
 isCodeRunning = True

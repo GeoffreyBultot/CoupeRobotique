@@ -61,23 +61,27 @@ if __name__ == '__main__':
     print("[DEBUG	] Thread MQTT Started")
     client.on_connect = on_connect
     client.on_message = on_message
-    JeanMichelDuma.speed = JeanMichelDuma.dict_speed['Slow']
+    #JeanMichelDuma.speed = JeanMichelDuma.dict_speed['Medium']
     targetX = dict_zones['Start'][0] / 10
     targetY = dict_zones['Start'][1] / 10
     print(f"Target = {targetX} , {targetY}")
     targetAngle = 30
-    time.sleep(2)
+    time.sleep(.5)
     while(True):
         try:
-            if(JeanMichelDuma.goToNewVersion(105,40)):
-                print("steaup")
-                JeanMichelDuma.stopMotors()
-                exit()
-            else:
+            JeanMichelDuma.goLeft(5000)
+            time.sleep(5)
+            JeanMichelDuma.goRight(2500)
+            time.sleep(5)
+            #if(JeanMichelDuma.goToNewVersion(targetX,targetY)):
+            print("steaup")
+            JeanMichelDuma.stopMotors()
+            exit()
+            """ else:
                 print('--------------------------------\n')
                 time.sleep(0.01)
                 #print("Not detected")
-                #JeanMichelDuma.stopMotors()
+                #JeanMichelDuma.stopMotors() """
         except:
             e = sys.exc_info()[0]
             print(e)
