@@ -6,10 +6,10 @@ import asyncio
 ventouse = Ventouse(2, 3, GPIO.BCM)
 arm = Arm()
 
-slotPositionDrop = [[47, 90, 55],
+slotPositionDrop = [[45, 90, 55],
                     [66, 80, 50],
                     [80, 85, 30],
-                    [103, 65, 25]]
+                    [105, 65, 25]]
 
 slotPositionGrab = [[65, 43, 70],
                     [80, 53, 50],
@@ -56,27 +56,39 @@ def setArmPosDistrib(uid):
         setOutsideFromInside()
     arm.MAX_OVERALL_SPEED = 30
 
-    print("---------------\nSetting before sunct Distrib")
-    arm.setServosOurAngle([40, 0, 0])
-    time.sleep(0.5)
+    #print("---------------\nSetting before sunct Distrib")
+    #arm.setServosOurAngle([40, 0, 0])
+    #time.sleep(0.5)
     if uid == 0:
-        arm.setServosOurAngle([16, 62, -52])
-        time.sleep(0.7)
+        arm.setServosOurAngle([20, 62, -56])
     elif uid == 1:
-        arm.setServosOurAngle([18, 62, -52])
-        time.sleep(0.7)
+        arm.setServosOurAngle([20, 70, -60])
     elif uid == 2:
-        arm.setServosOurAngle([20, 57, -45])
-        time.sleep(0.7)
+        arm.setServosOurAngle([22, 57, -43])
+
+    #time.sleep(3)
 
 
-def suckAndSetArmUpDistrib():
+def suckAndSetArmUpDistrib(uid):
     arm.isInside = False
     ventouse.sunct()
+    time.sleep(0.5)
 
     arm.MAX_OVERALL_SPEED = 20
     #Going Up
-    arm.setServosOurAngle([0, 60, -90])
+    if uid == 0:
+        arm.setServosOurAngle([0, 60, -90])
+    elif uid == 1:
+        arm.setServosOurAngle([10, 60, -75])
+    elif uid == 2:
+        arm.setServosOurAngle([0, 60, -90])
+
+    '''print("---------------\nSetting Higher")
+    arm.setServosOurAngle([20, 60, 45])
+    #time.sleep(0.5)
+
+    print("---------------\nSetting Inside")
+    arm.setServosOurAngle([32, 67, 80])'''
 
 
 def setSlotId(slot):
@@ -85,8 +97,7 @@ def setSlotId(slot):
 
     if slot==0:
         print("---------------\nSetting 1st")
-        arm.setServosOurAngle(slotPositionDrop[0]) 
-        time.sleep(5)
+        arm.setServosOurAngle(slotPositionDrop[0])
     
     if slot==1:
         print("---------------\nSetting 2d")
@@ -221,16 +232,19 @@ def setOutsideFromInside():
     arm.MAX_OVERALL_SPEED = 20
     arm.isInside = False
 
-servo = ServoStock(13, 400, GPIO.BCM)
+'''servo = ServoStock(13, 400, GPIO.BCM)
 
 arm.setServosOurAngle([90,92,92])
 servo.setDefault()
 time.sleep(0.5)
 servo.stopPwm()
-grabElementGround()
+setArmPosDistrib(1)
+time.sleep(3)
+suckAndSetArmUpDistrib(1)
+time.sleep(3)
 setupAfterGrab()
 setSlotId(0)
-'''for i in range(3, -1, -1):
+for i in range(3, -1, -1):
     grabElementGround()
     setupAfterGrab()
     setSlotId(i)'''

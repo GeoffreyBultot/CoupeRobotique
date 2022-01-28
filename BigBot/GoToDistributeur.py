@@ -1,18 +1,20 @@
 #!/usr/bin/python
 from Deplacement.Robot import *
-from armMov import *
 from Deplacement.Zones_Strategy import dict_zones
+from armMov import *
 import numpy as np
 import cv2
 from picamera import PiCamera
 from picamera.array import PiRGBArray
 from cv2 import aruco
 import math
-import asyncio
+import threading
 import _thread
 import paho.mqtt.client as mqtt
 import json
 
+
+from queue import Queue
 
 def on_connect(client, userdata, flags, rc):
     if rc==0:
@@ -30,23 +32,23 @@ def on_message(client, userdata, message):
         JeanMichelDuma.positionX = msg["x"]
         JeanMichelDuma.positionY = msg["y"]
         JeanMichelDuma.orientationZ = msg["rz"]
-        #cprint(f"Robot : X =  {JeanMichelDuma.positionX}, Y = {JeanMichelDuma.positionY}, RZ = {JeanMichelDuma.orientationZ}")
 
 
 def data_Thread(theadID):
+    C_IP_MQTT = "172.30.40.68"
+    client = mqtt.Client()
+    client.on_connect = on_connect
+    client.on_message = on_message
     while True:
         print('[DEBUG	] Connecting to the TTN Broker...')
         #client.connect("192.168.0.13", 1883, 60)
         print(client.connect(C_IP_MQTT, 1883, 60))
         client.loop_forever()
 
-C_IP_MQTT = "172.30.40.68"
-client = mqtt.Client()
-client.on_connect = on_connect
-client.on_message = on_message
 
-
-#region ENT
+# Calculates rotation matrix to euler angles
+# The result is the same as MATLAB except the order
+# of the euler angles ( x and z are swapped ).
 def rotationMatrixToEulerAngles(R) :
 
     sy = math.sqrt(R[0,0] * R[0,0] +  R[1,0] * R[1,0])
@@ -66,20 +68,20 @@ def rotationMatrixToEulerAngles(R) :
 
 
 DIM=(1280, 960)
-camera_matrix = np.array([[630.932402116786, 0.0, 585.6531301759157], [0.0, 631.6869826709609, 478.8413904560236], [0.0, 0.0, 1.0]])
-distortion_coeff = np.array([[-0.06670587491284909], [0.1057157290509116], [-0.13122001638126551], [0.04714118291127774]])
+camera_matrix=np.array([[630.932402116786, 0.0, 585.6531301759157], [0.0, 631.6869826709609, 478.8413904560236], [0.0, 0.0, 1.0]])
+distortion_coeff=np.array([[-0.06670587491284909], [0.1057157290509116], [-0.13122001638126551], [0.04714118291127774]])
+
+def initUndis():
+	global map1
+	global map2
+	map1, map2 = cv2.fisheye.initUndistortRectifyMap(camera_matrix, distortion_coeff, np.eye(3), camera_matrix, DIM, cv2.CV_16SC2)
 
 angle_camera = 20
 theta_camera = math.radians(angle_camera)
 
 rotation_matrix = np.array([[1,           0 ,                0], #rotation axe X
 [0           ,math.cos(theta_camera),               -math.sin(theta_camera)],
-[0,         math.sin(theta_camera),                math.cos(theta_camera)]])
-
-def initUndis():
-	global map1
-	global map2
-	map1, map2 = cv2.fisheye.initUndistortRectifyMap(camera_matrix, distortion_coeff, np.eye(3), camera_matrix, DIM, cv2.CV_16SC2)
+[0,         math.sin(theta_camera),                math.cos(theta_camera)]]) 
 
 def calculateDistance(list):
     dist = 0
@@ -107,47 +109,51 @@ def isStockageFull():
     return True
 
 
-async def grabItem(posElement):
+def grabItem(posElement):
     global isArmMoving
+
+    print(numberOfItemInStockage())
 
     isArmMoving = True
     if posElement == "GND":
-        await grabElementGround()
+        grabElementGround()
 
     elif posElement == "DSTB0":
-        await setArmPosDistrib(0)
+        setArmPosDistrib(0)
         #SHOULD DRIVE FORWARD HERE
-        await suckAndSetArmUpDistrib()
+        suckAndSetArmUpDistrib()
         #SHOULD DRIVE BACK HERE
 
     elif posElement == "DSTB1":
-        await setArmPosDistrib(1)
+        setArmPosDistrib(1)
         #SHOULD DRIVE FORWARD HERE
-        await suckAndSetArmUpDistrib()
+        suckAndSetArmUpDistrib()
         #SHOULD DRIVE BACK HERE
 
     elif posElement == "DSTB2":
-        await setArmPosDistrib(2)
+        setArmPosDistrib(2)
         #SHOULD DRIVE FORWARD HERE
-        await suckAndSetArmUpDistrib()
+        suckAndSetArmUpDistrib()
         #SHOULD DRIVE BACK HERE
 
 
-async def storeItem():
+def storeItem():
     global isArmMoving
     
-    await setupAfterGrab()
+    setupAfterGrab()
     for i in range(3, 0, -1):
         if not stockageArray[i]:
-            await setSlotId(i)
+            setSlotId(i)
             stockageArray[i] = True
             print("stockageArray :", stockageArray)
             isArmMoving = False
             return True
-#endregion
 
-async def loopDrivingUntilFound():
+
+def loopDrivingUntilFound(pos_el):
     global isArmMoving
+
+    #camera = PiCamera()
     
     distance = []
     ret_array = []
@@ -160,7 +166,8 @@ async def loopDrivingUntilFound():
         for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
             frame = frame_pi.array
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            corners, ids, _ = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)    
+            corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
+            
             idx_42 = np.where(ids == [42])
 
             if(idx_42[0].size > 0):
@@ -175,7 +182,6 @@ async def loopDrivingUntilFound():
                     ret = ret_array[i]
                     (rvec, tvec) = (ret[0][0, 0, :], ret[1][0, 0, :])
                     distance.append(calculateDistance(tvec))
-                #print("Distzncer brr :", distance)
                 min_dist = min(distance)
                 index = distance.index(min_dist)
                 ret = ret_array[index]
@@ -186,60 +192,130 @@ async def loopDrivingUntilFound():
                 rz = euleurAngle[2]
                 coord_xyz = np.matmul(rotation_matrix, tvec)
                 coord_xyz = changeXYZ(coord_xyz)
+                #print(coord_xyz)
+                print("rz :", rz)
                 distance = [] #clear le tableau
                 ret_array = []
-                if(JeanMichelDuma.goToSelfCamera(coord_xyz,rz)):
-                    print("steaup")
-                    return True  
-            else:
+                if pos_el == "GND":
+                    if(JeanMichelDuma.goToSelfCamera(coord_xyz,rz)):
+                        print("steaup")
+                        return "GND"  
+            '''else:
                 print("Not detected")
                 if not isArmMoving:
                     JeanMichelDuma.speed = JeanMichelDuma.dict_speed['Medium']
-                    JeanMichelDuma.rotationLeft()
+                    JeanMichelDuma.rotationLeft()'''
 
-            await asyncio.sleep(0.05)
             rawCapture.truncate(0)
 
-async def goToStartPosition():
-    targetX = dict_zones['Start'][0] / 10
-    targetY = dict_zones['Start'][1] / 10
-    print(f"fTarget = {targetX} , {targetY}")
-    targetAngle = 30
-    while(True):
-        await asyncio.sleep(0.15)
-        if(JeanMichelDuma.goToUsingLocation(targetX,targetY,targetAngle)):
-            client.unsubscribe(TOPIC_BIG_BOT)
-            print("ARRIVED")
-            time.sleep(5)
-            return
+        cv2.destroyAllWindows()
 
-async def main():
-    initUndis() #initialize le undistort
-    _thread.start_new_thread( data_Thread, (1 ,) )
+
+def campementBrr():
+    while(not JeanMichelDuma.goToNewVersion(CampementX,CampementY,2)):
+        pass
+
+def flexBrr():
+    for i in range(0, 25):
+        flex()
+        
+
+def main():
+    initUndis()
+    MQQT_thread = threading.Thread(target=data_Thread, args=(42,))
+    MQQT_thread.start()
     print("[DEBUG	] Thread MQTT Started")
-    try:  
-        loop = asyncio.get_event_loop()
-        if not arm.isInside:
-            await hideInside()
-        await goToStartPosition()
-        print("AYYYYYYYYYAAAAAAAAAAAA")
-        await loopDrivingUntilFound()
-        await grabItem("GND")
+    try:
+        
+        while(not JeanMichelDuma.goToNewVersion(StartX,StartY)): #va a la position de départ
+            pass
+        while(not JeanMichelDuma.setOrientation(40,9)): #s'oriente pour les tag
+            pass
+        res_drive = loopDrivingUntilFound("GND")
+        print("res_drive1 :", res_drive)
+        grabItem("GND")
 
-        while isCodeRunning and not isStockageFull():
-            tasks = [storeItem(), loopDrivingUntilFound()]
+        while True:#numberOfItemInStockage() < 3:
+            arm_thread = threading.Thread(target=lambda q: q.put(storeItem()), args=(que,))
+            arm_thread.start()
+            
+            if numberOfItemInStockage() == 2:
+                arm_thread.join()
+                res_arm = que.get()
 
-            a, b = loop.run_until_complete(asyncio.wait(tasks))
-            loop.close()
-            
-            print(f"a : {a}, b: {b}")
-            
-            await grabItem("GND")
-            if(numberOfItemInStockage == 3):
-                arm.disableTorqueAll()
-                JeanMichelDuma.stopMotors()
+                hideOutside()
+                servo.setReverse()
+                time.sleep(0.5)
                 servo.stopPwm()
-                exit()
+                time.sleep(0.5)
+                print("Hiding Inside")
+                hideInside()
+                break
+
+            #driveThread = threading.Thread(target=loopDrivingUntilFound, args=())
+            drive_thread = threading.Thread(target=lambda q, arg1: q.put( loopDrivingUntilFound(arg1)), args=(que,"GND"))
+            drive_thread.start()
+
+            arm_thread.join()
+            res_arm = que.get()
+            print("res_arm :", res_arm)
+
+            if drive_thread.is_alive():
+                arm.setServosOurAngle([90,92,92])
+                #hideInside()
+                drive_thread.join()
+
+            res_drive = que.get() 
+            print("res_drive :", res_drive)
+            
+            grabItem("GND")
+
+        while(not JeanMichelDuma.setOrientation(0,5)):
+            pass
+        
+        JeanMichelDuma.stopMotors()
+        
+        for i in range(0, 4):
+            if i == 0:
+                while(not JeanMichelDuma.goToNewVersion(GallerieRougeX,GallerieRougeY,2)):
+                    pass
+            elif i == 1:
+                while(not JeanMichelDuma.goToNewVersion(GallerieVertX,GallerieVertY,2)):
+                    pass
+            elif i == 2:
+                while(not JeanMichelDuma.goToNewVersion(GallerieBleuX,GallerieBleuY,2)):
+                    pass
+            elif i== 3:
+                break
+
+            while(not JeanMichelDuma.setOrientation(0,2)):
+                pass
+
+            JeanMichelDuma.stopMotors()
+
+            grabElementSlot(i)
+            setArmBotGallery()
+            ventouse.drop()
+            setupAfterGrab()
+        
+        print("steaup final")
+
+        drive_thread = threading.Thread(target=lambda q: q.put(campementBrr()), args=(que,))
+        drive_thread.start()
+
+        flex_thread = threading.Thread(target=lambda q: q.put(flexBrr()), args=(que,))
+        flex_thread.start()
+
+        drive_thread.join()
+        flex_thread.join()
+
+        arm.disableTorqueAll()
+        JeanMichelDuma.stopMotors()
+        servo.stopPwm()
+        servo.setDefault()
+        time.sleep(1)
+        servo.stopPwm()
+        exit()
 
         
     except KeyboardInterrupt:
@@ -255,12 +331,27 @@ x
 0----->y
  """
 
+TOPIC_BIG_BOT = "BigBot/2"
+
+StartX = dict_zones['Start'][0] / 10
+StartY = dict_zones['Start'][1] / 10
+GallerieRougeX = dict_zones['Galerie_Rouge'][0] / 10
+GallerieRougeY = dict_zones['Galerie_Rouge'][1] / 10
+GallerieVertX = dict_zones['Galerie_Vert'][0] / 10
+GallerieVertY = dict_zones['Galerie_Vert'][1] / 10
+GallerieBleuX = dict_zones['Galerie_Bleu'][0] / 10
+GallerieBleuY = dict_zones['Galerie_Bleu'][1] / 10
+
+CampementX = dict_zones['Campement'][0] / 10
+CampementY = dict_zones['Campement'][1] / 10
+
+
 team = "Y" #"P"
 isCodeRunning = True
 isArmMoving = False
 
+que = Queue()
 
-TOPIC_BIG_BOT = "BigBot/2"
 JeanMichelDuma = Robot()
 JeanMichelDuma.DEBUG = 0
 markerSizeInCM = 5
@@ -283,11 +374,18 @@ arm.enableTorqueAll()
 arm.setMaxTorqueAll(100)
 arm.setTorqueLimitAll(100)
 arm.MAX_OVERALL_SPEED = 20
+arm.setServosOurAngle([90,92,92])
 
 servo = ServoStock(13, 400, GPIO.BCM)
 
+'''servo.setDefault()
+time.sleep(1)
+servo.setReverse()
+time.sleep(1)'''
 servo.setDefault()
+time.sleep(1)
 servo.stopPwm()
+time.sleep(1)
 
-if __name__ == '__main__':
-    asyncio.run(main())
+
+main()

@@ -1,19 +1,19 @@
 dict_zones ={
-	"tag42_Abs": (1500,1250),
-	"Galerie_Bleu":(590,270),
-	"Galerie_Vert":(820,280),
-	"Galerie_Rouge":(1070,290),
-	"TresorBleu":(900,555),
-	"TresorVert":(830,675),
-	"TresorRouge":(900,795),
-	"DispenserEquipe":(102,1400),
-	"DispenserMat":(1350,100),
-	"FouilleEquipe_Droite":(1150,1375),
-	"FouilleEquipe_Gauche":(1150,1375),
-	"FouilleEquipe_Dessus":(975,1200),
-	"FouilleEquipe_Bas":(975,1550),
-	"Start":(750,1150),
-	"Campement":(180,800)
+	"tag42_Abs": (150,125),
+	"Galerie_Bleu":(59,29),
+	"Galerie_Vert":(82,29),
+	"Galerie_Rouge":(107,30),
+	"TresorBleu":(90,55),
+	"TresorVert":(83,67),
+	"TresorRouge":(90,79),
+	"DispenserEquipe":(10,140),
+	"DispenserMat":(137,35),
+	"FouilleEquipe_Droite":(115,137),
+	"FouilleEquipe_Gauche":(115,137),
+	"FouilleEquipe_Dessus":(97,120),
+	"FouilleEquipe_Bas":(97,155),
+	"Start":(75,115),
+	"Campement":(18,80)
 }
 #Strat1
 positionsToReach_1 = ["TresorVert","TresorRouge","TresorBleu"]

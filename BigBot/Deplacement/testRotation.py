@@ -62,33 +62,15 @@ if __name__ == '__main__':
     client.on_connect = on_connect
     client.on_message = on_message
  """    #JeanMichelDuma.speed = JeanMichelDuma.dict_speed['Medium']
-    targetX = dict_zones['Start'][0] / 10
-    targetY = dict_zones['Start'][1] / 10
+    targetX = dict_zones['DispenserMat'][0] / 10
+    targetY = dict_zones['DispenserMat'][1] / 10
     print(f"Target = {targetX} , {targetY}")
     targetAngle = 30
     time.sleep(.5)
     while(True):
         try:
-            JeanMichelDuma.goForward()
-            time.sleep(2)
-            JeanMichelDuma.goLeft(10000)
-            JeanMichelDuma.goRight(10000)
-            JeanMichelDuma.goForward(10000)
-            JeanMichelDuma.goBackward(10000)
-            JeanMichelDuma.goForward()
-            time.sleep(0.5)
-            JeanMichelDuma.goBackward(10000)
-            time.sleep(1)
-            #if(JeanMichelDuma.goToNewVersion(targetX,targetY)):
-            print("steaup")
-            time.sleep(2)
-            JeanMichelDuma.stopMotors()
-            exit()
-            """ else:
-                print('--------------------------------\n')
-                time.sleep(0.01)
-                #print("Not detected")
-                #JeanMichelDuma.stopMotors() """
+            while(not JeanMichelDuma.goToNewVersion(targetX,targetY)):
+                JeanMichelDuma.goToDistributeur()
         except:
             e = sys.exc_info()[0]
             print(e)

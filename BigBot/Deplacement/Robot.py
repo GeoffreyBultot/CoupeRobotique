@@ -3,7 +3,7 @@ import math
 import time
 import sys
 import numpy as np
-from utils import computeDict,_set_motor,getDistance
+from .utils import computeDict,_set_motor,getDistance
 
 
 #TODO Calibration avec item dans le chasse neige
@@ -37,7 +37,7 @@ class Robot:
         self.orientationZ = 90
         self.offsetX = 2.5
         self.offsetY = 5.2 #la camera est 5.2cm � droite du centre du robot
-        self.offsetDistrib = 20
+        self.offsetDistrib = 17.5
         self.deadBandY = 1
         self.deadBandAngle = 7
         self.reg = 0
@@ -215,26 +215,37 @@ class Robot:
         return True
 
 
-    def goToDistributeur(self,targetX,targetY,rot):
-        if(abs(targetY) > self.deadBandY): #s'aligne 
+    def goToDistributeur(self,targetXYZ):
+        offsetX = 2
+        targetX = targetXYZ[0]
+        targetY = targetXYZ[1]
+        targetY = targetY + 6.3 #TODO
+        print("Target X = ",targetX)
+        print("Target Y = ",targetY)
+        if(abs(targetY) > self.deadBandY-0.3): #s'aligne 
             print("ALIGNING")
             self.speed = self.dict_speed['Slow']
             if(targetY < 0):
                 self.goLeft()
             else:
                 self.goRight()
-                return 0
-        elif(targetX > self.offsetDistrib):
+            return 0
+        elif(targetX > self.offsetDistrib + offsetX):
             self.speed = self.dict_speed['Slow']
             self.goForward()
             return 0
+        elif(targetX < self.offsetDistrib - offsetX):
+            self.speed = self.dict_speed['Slow']
+            self.goBackward()
+            return 0
+        self.block()
         return 1
 
     def setOrientation(self,angleToReach,offset_max_angle = 15):
         #print("Angle to Reach = ",angleToReach)
         #print("Robot Angle = ",self.orientationZ)
         angleToAchieve = ((angleToReach-self.orientationZ +540)%360)-180  #https://math.stackexchange.com/questions/110080/shortest-way-to-achieve-target-angle/2898118)
-        if(abs(angleToAchieve) > 25):
+        if(abs(angleToAchieve) > 15):
             self.speed = self.dict_speed['Medium'] #si on doit faire un grand angle, on va vite
         else:
             self.speed = self.dict_speed['Slow']
@@ -252,6 +263,7 @@ class Robot:
         deltaX = targetX -  self.positionX
         deltaY = targetY -  self.positionY
         arrived = 0
+        offset = offset + 0.1*deltaY
         #print("deltaX =", deltaX)
         #print("deltaY =", deltaY)
         if(self.setOrientationForTranslation()): #on est align� c'est bon

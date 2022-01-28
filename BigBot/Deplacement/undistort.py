@@ -70,15 +70,16 @@ if __name__ == '__main__':
             (rvec, tvec) = (ret[0][0, 0, :], ret[1][0, 0, :])
             coord_xyz = np.matmul(rotation_matrix, tvec)
             coord_xyz = changeXYZ(coord_xyz)
-            print(coord_xyz)
+            #print(coord_xyz)
             rvec_xyz = rvec
             rotation,_ = cv2.Rodrigues(rvec_xyz)
             rvec_xyz = np.matmul(rotation_matrix, rvec) 
             euleurAngle = rotationMatrixToEulerAngles(rotation)
+            print("Euler Angle = ",euleurAngle)
             dist = math.sqrt(coord_xyz[0]**2 + coord_xyz[1]**2)
-            print("Dist = ", dist)
+            #print("Dist = ", dist)
             #print("Euler = " ,euleurAngle[2])
-            #print("XYZ = ",coord_xyz)
+            print("XYZ = ",coord_xyz)
 
         cv2.imshow("LIVE FEED" ,frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):

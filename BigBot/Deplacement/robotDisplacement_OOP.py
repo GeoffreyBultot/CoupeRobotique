@@ -11,12 +11,12 @@ import paho.mqtt.client as mqtt
 import json
 
 
-TOPIC_BIG_BOT = "BigBot"
+TOPIC_BIG_BOT = "BigBot/2"
 
 def on_connect(client, userdata, flags, rc):
     if rc==0:
         print("connected OK Returned code=",rc)
-        client.subscribe(TOPIC_BIG_BOT + "/2")
+        client.subscribe(TOPIC_BIG_BOT)
     else:
         print("Bad connection Returned code=",rc)
 
@@ -29,13 +29,13 @@ def on_message(client, userdata, message):
     global JeanMichelDuma
     msg = message.payload.decode("utf-8")
     msg = json.loads(msg)
-    if(message.topic == (TOPIC_BIG_BOT+"/2")):
+    if(message.topic == (TOPIC_BIG_BOT)):
         JeanMichelDuma.positionX = msg["x"]
         JeanMichelDuma.positionY = msg["y"]
         JeanMichelDuma.orientationZ = msg["rz"]
-        print("X Y RZ + " + str(msg["x"]) +  str(msg["y"]) +  str(msg["rz"]))
+        #print("X Y RZ + " + str(msg["x"]) +  str(msg["y"]) +  str(msg["rz"]))
 
-C_IP_MQTT = "172.30.40.65"
+C_IP_MQTT = "172.30.40.68"
 client = mqtt.Client()
 client.on_connect = on_connect
 
@@ -127,6 +127,11 @@ if __name__ == '__main__':
     print(rotation_matrix)
     distance = []
     ret_array = []
+    while(not JeanMichelDuma.setOrientation(0,5)):
+        pass
+
+    print("ORIENTED")
+    JeanMichelDuma.stopMotors()
 
 
     for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
@@ -156,9 +161,12 @@ if __name__ == '__main__':
             distance = [] #clear le tableau
             ret_array = []
             #if(JeanMichelDuma.approachTargetUsingRotation(coord_xyz,rz)):
-            if(JeanMichelDuma.goToSelfCamera(coord_xyz,rz)):
+            if(JeanMichelDuma.goToDistributeur(coord_xyz)):
+                while(not JeanMichelDuma.setOrientation(0)):
+                    pass
                 print("steaup")
                 JeanMichelDuma.stopMotors()
+                camera.stop_recording()
                 exit()
         else:
             #print("Not detected")

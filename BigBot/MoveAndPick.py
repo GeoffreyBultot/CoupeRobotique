@@ -32,7 +32,6 @@ def on_message(client, userdata, message):
         JeanMichelDuma.positionX = msg["x"]
         JeanMichelDuma.positionY = msg["y"]
         JeanMichelDuma.orientationZ = msg["rz"]
-        #print(f"Robot : X =  {JeanMichelDuma.positionX}, Y = {JeanMichelDuma.positionY}, RZ = {JeanMichelDuma.orientationZ}")
 
 
 def data_Thread(theadID):
@@ -112,7 +111,9 @@ def isStockageFull():
 
 def grabItem(posElement):
     global isArmMoving
-
+    N_forward = 1200
+    N_back = 1500
+    JeanMichelDuma.speed = JeanMichelDuma.dict_speed['Slow']
     print(numberOfItemInStockage())
 
     isArmMoving = True
@@ -121,21 +122,27 @@ def grabItem(posElement):
 
     elif posElement == "DSTB0":
         setArmPosDistrib(0)
-        #SHOULD DRIVE FORWARD HERE
-        suckAndSetArmUpDistrib()
-        #SHOULD DRIVE BACK HERE
+        time.sleep(0.9)
+        JeanMichelDuma.goForward()
+        time.sleep(0.9)
+        JeanMichelDuma.stopMotors()
+        suckAndSetArmUpDistrib(0)
+        JeanMichelDuma.goBackward(N_back)
 
     elif posElement == "DSTB1":
         setArmPosDistrib(1)
-        #SHOULD DRIVE FORWARD HERE
-        suckAndSetArmUpDistrib()
-        #SHOULD DRIVE BACK HERE
+        time.sleep(0.9)
+        JeanMichelDuma.goForward()
+        time.sleep(0.9)
+        JeanMichelDuma.stopMotors()
+        suckAndSetArmUpDistrib(1)
+        JeanMichelDuma.goBackward(N_back)
 
     elif posElement == "DSTB2":
         setArmPosDistrib(2)
-        #SHOULD DRIVE FORWARD HERE
+        JeanMichelDuma.goForward(N_forward)
         suckAndSetArmUpDistrib()
-        #SHOULD DRIVE BACK HERE
+        JeanMichelDuma.goBackward(N_back)
 
 
 def storeItem():
@@ -194,13 +201,18 @@ def loopDrivingUntilFound(pos_el):
                 coord_xyz = np.matmul(rotation_matrix, tvec)
                 coord_xyz = changeXYZ(coord_xyz)
                 #print(coord_xyz)
-                print("rz :", rz)
+                #print("rz :", rz)
                 distance = [] #clear le tableau
                 ret_array = []
                 if pos_el == "GND":
                     if(JeanMichelDuma.goToSelfCamera(coord_xyz,rz)):
                         print("steaup")
-                        return "GND"  
+                        return "GND"
+                elif pos_el == "DSTB":
+                    if(JeanMichelDuma.setOrientation(0,4)):
+                        if(JeanMichelDuma.goToDistributeur(coord_xyz)):
+                            print("steaup")
+                            return "DSTB"
             '''else:
                 print("Not detected")
                 if not isArmMoving:
@@ -227,9 +239,10 @@ def main():
     MQQT_thread.start()
     print("[DEBUG	] Thread MQTT Started")
     try:
-        
-        while(not JeanMichelDuma.goToNewVersion(StartX,StartY)): #va a la position de départ
-            pass
+        """ while(not JeanMichelDuma.goToNewVersion(StartX,StartY)): #va a la position de départ
+            pass """
+        JeanMichelDuma.goForward(12700)
+        time.sleep(10)
         while(not JeanMichelDuma.setOrientation(40,9)): #s'oriente pour les tag
             pass
         res_drive = loopDrivingUntilFound("GND")
@@ -244,7 +257,7 @@ def main():
                 arm_thread.join()
                 res_arm = que.get()
 
-                hideOutside()
+                setOutsideFromInside()
                 servo.setReverse()
                 time.sleep(0.5)
                 servo.stopPwm()
@@ -291,24 +304,59 @@ def main():
 
             while(not JeanMichelDuma.setOrientation(0,2)):
                 pass
-
+            
+            JeanMichelDuma.block()
+            time.sleep(0.2)
             JeanMichelDuma.stopMotors()
 
             grabElementSlot(i)
             setArmBotGallery()
             ventouse.drop()
             setupAfterGrab()
+
+            stockageArray[i] = False
+        
+        hideInside()
+        servo.setDefault()
+
+        JeanMichelDuma.goRight(60000)
+        time.sleep(5)
+
+        while(not JeanMichelDuma.goToNewVersion(DistribMatX,DistribMatY,2)):
+            pass
+        
+        while(not JeanMichelDuma.setOrientation(0,4)):
+            pass
+        
+        JeanMichelDuma.stopMotors()
+
+        res_drive = loopDrivingUntilFound("DSTB")
+        grabItem("DSTB0")
+        storeItem()
+
+        servo.setReverse()
+
+        while(not JeanMichelDuma.setOrientation(0,5)):
+            pass
+        
+        JeanMichelDuma.stopMotors()
+
+        JeanMichelDuma.goLeft(60000)
+        time.sleep(5)
+
+        while(not JeanMichelDuma.goToNewVersion(GallerieBleuX,GallerieBleuY,2)):
+            pass
+
+        while(not JeanMichelDuma.setOrientation(0,2)):
+            pass
+
+        JeanMichelDuma.stopMotors()
+
+        grabElementSlot(0)
+        setArmBotGallery()
+        ventouse.drop()
         
         print("steaup final")
-
-        drive_thread = threading.Thread(target=lambda q: q.put(campementBrr()), args=(que,))
-        drive_thread.start()
-
-        flex_thread = threading.Thread(target=lambda q: q.put(flexBrr()), args=(que,))
-        flex_thread.start()
-
-        drive_thread.join()
-        flex_thread.join()
 
         arm.disableTorqueAll()
         JeanMichelDuma.stopMotors()
@@ -334,17 +382,20 @@ x
 
 TOPIC_BIG_BOT = "BigBot/2"
 
-StartX = dict_zones['Start'][0] / 10
-StartY = dict_zones['Start'][1] / 10
-GallerieRougeX = dict_zones['Galerie_Rouge'][0] / 10
-GallerieRougeY = dict_zones['Galerie_Rouge'][1] / 10
-GallerieVertX = dict_zones['Galerie_Vert'][0] / 10
-GallerieVertY = dict_zones['Galerie_Vert'][1] / 10
-GallerieBleuX = dict_zones['Galerie_Bleu'][0] / 10
-GallerieBleuY = dict_zones['Galerie_Bleu'][1] / 10
+StartX = dict_zones['Start'][0]
+StartY = dict_zones['Start'][1]
+GallerieRougeX = dict_zones['Galerie_Rouge'][0]
+GallerieRougeY = dict_zones['Galerie_Rouge'][1]
+GallerieVertX = dict_zones['Galerie_Vert'][0]
+GallerieVertY = dict_zones['Galerie_Vert'][1]
+GallerieBleuX = dict_zones['Galerie_Bleu'][0]
+GallerieBleuY = dict_zones['Galerie_Bleu'][1]
 
-CampementX = dict_zones['Campement'][0] / 10
-CampementY = dict_zones['Campement'][1] / 10
+DistribMatX = dict_zones['DispenserMat'][0]
+DistribMatY = dict_zones['DispenserMat'][1]
+
+CampementX = dict_zones['Campement'][0]
+CampementY = dict_zones['Campement'][1]
 
 
 team = "Y" #"P"
@@ -358,7 +409,6 @@ JeanMichelDuma.DEBUG = 0
 markerSizeInCM = 5
 aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_100)
 parameters =  aruco.DetectorParameters_create()
-print(rotation_matrix)
 
 stockageArray = [False, False, False, False]
 
