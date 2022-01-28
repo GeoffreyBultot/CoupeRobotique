@@ -29,8 +29,18 @@ RL = 6
 RR = 7
 tagsOnRobot = [FL,FR,RL,RR]
 pairsTag = [[FR,FL],[RR,FR],[RL,RR],[FL,RL]]
+distanceBetweenPairTags = [16.2,14.7,16.8,14.2]
+#entre FL et FR : 16.2cm
+#entre FL et RL L14.3
+#entre RL et RR : 16.8cm
+#entre FR et RR : 14.7cm
+
+
 #anglePairTag = [0,90,180,270]#avec 0 vers la droite
 anglePairTag = [270,0,90,180] #avec 0 face camera
+
+
+
 
 
 #BGR

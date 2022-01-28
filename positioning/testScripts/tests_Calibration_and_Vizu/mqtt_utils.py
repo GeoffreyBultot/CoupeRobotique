@@ -125,11 +125,13 @@ def findRobotCenter(ids,tvecs,rvecs):
 
 
 def getRobotPoseFrom2tags(tag_gauche,tag_droit):
+	#Calcul de la position milieu entre 2 tags
 	mid_x,mid_y,angle = determineMidpointAndAngle180(tag_gauche,tag_droit)
 	if((tag_gauche[0])<(tag_droit[0])):#tag 1 à gauche : 0,180
 		angle = angle+90
 	else:
 		angle = angle+270
+	
 	lenRobot = 22
 	lenTag = 7
 	d = lenRobot/2-lenTag/2

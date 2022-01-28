@@ -24,6 +24,11 @@ D=np.array([[-0.02525869724179829], [0.01980933465020202], [-0.02957970842677755
 K=np.array([[631.2572612018607, 0.0, 618.467038857025], [0.0, 629.6274581887568, 467.35515194079954], [0.0, 0.0, 1.0]])
 D=np.array([[-0.0215299622191804], [-0.014370973740814787], [0.021604009136345702], [-0.009689611617510977]])
 
+#K=np.array([[630.5825314045783, 0.0, 620.8057164012537], [0.0, 629.3053625836126, 465.50088979427255], [0.0, 0.0, 1.0]])
+#D=np.array([[-0.023615555373413755], [0.013474224062150016], [-0.018809393732810716], [0.007742965964820537]])
+
+
+
 
 #If on RPI
 camera = PiCamera()
@@ -163,30 +168,14 @@ if __name__ == '__main__':
 						tvec = (tvec[0][0])
 						rvec =  (rvec[0][0])
 						if(ids[i][0]==42):
-							nech = 20
-							if(lastsTvecs42 is None):
-								lastsTvecs42 = tvec
-								lastsRvecs42 = rvec
-							else:
-								lastsTvecs42 = np.vstack((lastsTvecs42,[tvec]))
-								lastsRvecs42 = np.vstack((lastsRvecs42,[rvec]))
-								if(len(lastsTvecs42) > nech):
-									lastsTvecs42 = np.delete(lastsTvecs42, 0,0)
-									lastsRvecs42 = np.delete(lastsRvecs42, 0,0)
-								#moyenne.append(rvec)
-							sum_tvec=np.array([0,0,0])
-							sum_rvec=np.array([0,0,0])
-							for i in range(0,len(lastsTvecs42)):
-								sum_tvec = np.add(sum_tvec,lastsTvecs42[i])
-								sum_rvec = np.add(sum_rvec,lastsRvecs42[i])
-							#tvec = sum_tvec/len(lastsTvecs42)
-							#rvec = sum_rvec/len(lastsRvecs42)
-							M_Calib = computeMcalibMatrix(rvec,tvec)
-							rotation,_ = cv2.Rodrigues(rvec)
-							rvec = rotationMatrixToEulerAngles(rotation)
+							if(M_Calib is None):
+								print("compute mcalib")
+								M_Calib = computeMcalibMatrix(rvec,tvec)
+								rotation,_ = cv2.Rodrigues(rvec)
+								rvec = rotationMatrixToEulerAngles(rotation)
 							#ComputeRotationOffteur(rvec)
-							rvec42 = rvec
-							tvec42 = tvec
+								rvec42 = rvec
+								tvec42 = tvec
 						temp_tvecs.append(tvec)
 						temp_rvecs.append(rvec)
 						
