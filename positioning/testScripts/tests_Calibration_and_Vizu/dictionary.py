@@ -1,7 +1,6 @@
 
 dict_sizes = {
 	1: 6.7,
-	#2: 6.7,
 	2: 6.7,
 	6: 6.7,
 	7: 6.7,
@@ -13,7 +12,10 @@ dict_sizes = {
 	47: 5, #face tresor rouge
 	13: 5, #face tresor bleu
 	36: 5, #face tresor vert
-	65: 5
+	65: 5,
+	96:6.7,
+	97:6.7,
+	98:6.7,
  }
 
 
@@ -30,6 +32,7 @@ RR = 7
 tagsOnRobot = [FL,FR,RL,RR]
 pairsTag = [[FR,FL],[RR,FR],[RL,RR],[FL,RL]]
 distanceBetweenPairTags = [16.2,14.7,16.8,14.2]
+distanceToAddToReachCenter = [14.2,16.7,14.8,16.2]
 #entre FL et FR : 16.2cm
 #entre FL et RL L14.3
 #entre RL et RR : 16.8cm

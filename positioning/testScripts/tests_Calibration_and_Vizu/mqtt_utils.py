@@ -111,20 +111,18 @@ def findRobotCenter(ids,tvecs,rvecs):
 		#check si une paire de tags est détectée
 		for i in range(0,len(pairsTag)):
 			if(pairsTag[i][0] in foundTagsBot and pairsTag[i][1] in foundTagsBot):#Si on a trouvé 2 tags qui vont de paire
-					#print("found bot wit pair [",pairsTag[i][0],",",pairsTag[i][1],"]")
 					idx_tag1 = ids.index(pairsTag[i][0])
 					idx_tag2 = ids.index(pairsTag[i][1])
-					x,y,a = getRobotPoseFrom2tags(tvecs[idx_tag1],tvecs[idx_tag2])
+					x,y,a = getRobotPoseFrom2tags(i,tvecs[idx_tag1],tvecs[idx_tag2])
 					a = (a+anglePairTag[i])%360
 					a = (180 - a) % 360
-					#print(150+x,125-y,a)
 					return x,y,a
 		#ici on va check si on trouve le bot avec juste un des tags
 	else:
 		return False
 
 
-def getRobotPoseFrom2tags(tag_gauche,tag_droit):
+def getRobotPoseFrom2tags(idPairTag,tag_gauche,tag_droit):
 	#Calcul de la position milieu entre 2 tags
 	mid_x,mid_y,angle = determineMidpointAndAngle180(tag_gauche,tag_droit)
 	if((tag_gauche[0])<(tag_droit[0])):#tag 1 à gauche : 0,180
@@ -135,6 +133,7 @@ def getRobotPoseFrom2tags(tag_gauche,tag_droit):
 	lenRobot = 22
 	lenTag = 7
 	d = lenRobot/2-lenTag/2
+	d = distanceToAddToReachCenter[idPairTag]/2
 	x_robot=mid_x + d*math.cos(math.radians(angle))
 	y_robot=mid_y + d*math.sin(math.radians(angle))
 	return x_robot, y_robot, angle
