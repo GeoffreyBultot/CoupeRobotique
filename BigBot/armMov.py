@@ -6,9 +6,9 @@ import asyncio
 ventouse = Ventouse(2, 3, GPIO.BCM)
 arm = Arm()
 
-slotPositionDrop = [[45, 90, 55],
-                    [66, 80, 50],
-                    [80, 85, 30],
+slotPositionDrop = [[50, 90, 55],
+                    [70, 80, 50],
+                    [85, 85, 30],
                     [105, 65, 25]]
 
 slotPositionGrab = [[65, 43, 70],
@@ -19,36 +19,29 @@ slotPositionGrab = [[65, 43, 70],
 
 def grabElementGround():
     arm.isInside = False
-    arm.MAX_OVERALL_SPEED = 25
+    arm.MAX_OVERALL_SPEED = 50
     print("---------------\nSetting before sunct")
-    arm.setServosOurAngle([13, 30, 86])
-    #time.sleep(0.5)
+    arm.setServosOurAngle([20, 30, 90])
 
-    arm.setServosOurAngle([20,20,50])
-    #time.sleep(0.5)
+    arm.MAX_OVERALL_SPEED = 20
+    arm.setServosOurAngle([50, 15, 15])
 
-    arm.setServosOurAngle([49, 30, 9])
-    #time.sleep(0.2)
-
-    arm.setServosOurAngle([57, 15, 17])
     print("Sucking")
     ventouse.sunct()
 
 
 def setupAfterGrab():
     arm.isInside = False
-    arm.MAX_OVERALL_SPEED = 20
-    print("---------------\n Back A BIT")
-    arm.setServosOurAngle([6, 71, 23])
-    #time.sleep(0.5)
+    arm.MAX_OVERALL_SPEED = 30
+    #print("---------------\n Back A BIT")
+    #arm.setServosOurAngle([6, 71, 23])
 
     print("---------------\nSetting Higher")
-    arm.setServosOurAngle([20, 60, 45])
-    #time.sleep(0.5)
+    arm.setServosOurAngle([15, 60, 45])
 
     print("---------------\nSetting Inside")
-    arm.setServosOurAngle([32, 67, 80])
-    #time.sleep(0.4)
+    arm.setServosOurAngle([50, 80, 80])
+    #arm.setServosOurAngle([32, 67, 80])
 
 
 def setArmPosDistrib(uid):
@@ -117,7 +110,7 @@ def setSlotId(slot):
     time.sleep(0.5)
     ventouse.drop()
     arm.MAX_OVERALL_SPEED = 50
-    arm.setServosOurAngle([90,92,92])
+    arm.setServosOurAngle([90,90,90])
 
 
 def grabElementSlot(slot):
@@ -142,7 +135,8 @@ def grabElementSlot(slot):
 
     if slot==3:
         print("---------------\nGrabbing 4th")
-        arm.setServosOurAngle(slotPositionGrab[3])
+        arm.setServosOurAngle([130, -30, 75])
+        arm.setServosOurAngle(slotPositionGrab[3]) #[130, -15, 65]
 
     print("Sucking")
     ventouse.sunct()
@@ -217,7 +211,7 @@ def hideInside():
     #time.sleep(0.2)
     arm.setServosOurAngle([0,90,90])
     #time.sleep(0.2)
-    arm.setServosOurAngle([90,92,92])
+    arm.setServosOurAngle([90,90,90])
     #time.sleep(0.4)
     arm.MAX_OVERALL_SPEED = 20
     arm.isInside = True
@@ -234,22 +228,39 @@ def setOutsideFromInside():
 
 '''servo = ServoStock(13, 400, GPIO.BCM)
 
-arm.setServosOurAngle([90,92,92])
+arm.enableTorqueAll()
+arm.setMaxTorqueAll(100)
+arm.setTorqueLimitAll(100)
+arm.setDelayTimeAll(0)
+
+arm.setServosOurAngle([90,90,90])
 servo.setDefault()
 time.sleep(0.5)
 servo.stopPwm()
-setArmPosDistrib(1)
-time.sleep(3)
-suckAndSetArmUpDistrib(1)
-time.sleep(3)
-setupAfterGrab()
-setSlotId(0)
-for i in range(3, -1, -1):
+
+for i in range(3,-1, -1):
     grabElementGround()
     setupAfterGrab()
-    setSlotId(i)'''
+    setSlotId(i)
 
-'''def main():
+setOutsideFromInside()
+
+servo.setReverse()
+time.sleep(0.5)
+servo.stopPwm()
+
+hideInside()
+
+for i in range(0, 4):
+    grabElementSlot(i)
+    throw()
+    hideInside()
+
+servo.setDefault()
+
+arm.setServosOurAngle([90,90,90])
+
+def main():
     try:
         ventouse.setDefault()
 
@@ -260,7 +271,7 @@ for i in range(3, -1, -1):
 
         servo = ServoStock(13, 400, GPIO.BCM)
 
-        arm.setServosOurAngle([90,92,92])
+        arm.setServosOurAngle([90,90,90])
         servo.setDefault()
         time.sleep(0.5)
         servo.stopPwm()

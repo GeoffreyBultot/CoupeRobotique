@@ -1,5 +1,6 @@
 #!/usr/bin/python
 from Deplacement.Robot import *
+from Deplacement.utils import stepsFromCm
 from Deplacement.Zones_Strategy import dict_zones
 from armMov import *
 import numpy as np
@@ -140,8 +141,11 @@ def grabItem(posElement):
 
     elif posElement == "DSTB2":
         setArmPosDistrib(2)
-        JeanMichelDuma.goForward(N_forward)
-        suckAndSetArmUpDistrib()
+        time.sleep(0.9)
+        JeanMichelDuma.goForward()
+        time.sleep(0.9)
+        JeanMichelDuma.stopMotors()
+        suckAndSetArmUpDistrib(2)
         JeanMichelDuma.goBackward(N_back)
 
 
@@ -231,7 +235,95 @@ def campementBrr():
 def flexBrr():
     for i in range(0, 25):
         flex()
+
+def goToStartPosition():
+    while(not JeanMichelDuma.goToNewVersion(StartX,StartY)): #va a la position de départ
+        pass 
+    JeanMichelDuma.goForward(STEPS_TO_START)
+    time.sleep(4)
+    while(not JeanMichelDuma.setOrientation(40,5)): #s'oriente pour les tag
+        pass
+
+def getFirst3Items():
+    res_drive = loopDrivingUntilFound("GND")
+    print("res_drive1 :", res_drive)
+    grabItem("GND")
+
+    while True:#numberOfItemInStockage() < 3:
+        arm_thread = threading.Thread(target=lambda q: q.put(storeItem()), args=(que,))
+        arm_thread.start()
         
+        if numberOfItemInStockage() >= 2:
+            arm_thread.join()
+            res_arm = que.get()
+
+            setOutsideFromInside()
+            servo.setReverse()
+            time.sleep(0.5)
+            servo.stopPwm()
+            time.sleep(0.5)
+            print("Hiding Inside")
+            hideInside()
+            break
+
+        drive_thread = threading.Thread(target=lambda q, arg1: q.put( loopDrivingUntilFound(arg1)), args=(que,"GND"))
+        drive_thread.start()
+
+        arm_thread.join()
+        res_arm = que.get()
+        print("res_arm :", res_arm)
+
+        if drive_thread.is_alive():
+            arm.setServosOurAngle([90,90,90])
+            drive_thread.join()
+
+        res_drive = que.get() 
+        print("res_drive :", res_drive)
+        
+        grabItem("GND")
+
+def placeItemsInGallery():
+    while(not JeanMichelDuma.setOrientation(0,5)):
+            pass
+        
+    JeanMichelDuma.stopMotors()
+    distanceBetweenGallery = abs(GallerieRougeX - GallerieVertX)
+    steps = stepsFromCm(distanceBetweenGallery)
+    for i in range(0, 4):
+        if i == 0:
+            while(not JeanMichelDuma.goToNewVersion(GallerieRougeX,GallerieRougeY,2)):
+                pass
+        elif i == 1:
+            JeanMichelDuma.goLeft(steps)
+            while(JeanMichelDuma.positionX > GallerieVertX + 6 ):
+                pass
+            while(not JeanMichelDuma.goToNewVersion(GallerieVertX,GallerieVertY,2)):
+                pass
+        elif i == 2:
+            JeanMichelDuma.goLeft(steps)
+            while(JeanMichelDuma.positionX > GallerieBleuX + 6 ):
+                pass
+            while(not JeanMichelDuma.goToNewVersion(GallerieBleuX,GallerieBleuY,2)):
+                pass
+        elif i== 3:
+            break
+
+        while(not JeanMichelDuma.setOrientation(0,2)):
+            pass
+        
+        JeanMichelDuma.block()
+        time.sleep(0.2)
+        JeanMichelDuma.stopMotors()
+
+        grabElementSlot(i)
+        setArmBotGallery()
+        ventouse.drop()
+        setupAfterGrab()
+
+        stockageArray[i] = False
+    
+    hideInside()
+    servo.setDefault()
 
 def main():
     initUndis()
@@ -239,87 +331,26 @@ def main():
     MQQT_thread.start()
     print("[DEBUG	] Thread MQTT Started")
     try:
-        """ while(not JeanMichelDuma.goToNewVersion(StartX,StartY)): #va a la position de départ
-            pass """
-        JeanMichelDuma.goForward(12700)
-        time.sleep(10)
-        while(not JeanMichelDuma.setOrientation(40,9)): #s'oriente pour les tag
+        """ 
+        goToStartPosition()
+        getFirst3Items()
+       """
+        placeItemsInGallery()
+        
+
+
+        #-----#On est à la gallerie bleue, on va chercher dans le stockage--------
+        #New version
+        while(not JeanMichelDuma.setOrientation(90,3)):
             pass
-        res_drive = loopDrivingUntilFound("GND")
-        print("res_drive1 :", res_drive)
-        grabItem("GND")
-
-        while True:#numberOfItemInStockage() < 3:
-            arm_thread = threading.Thread(target=lambda q: q.put(storeItem()), args=(que,))
-            arm_thread.start()
-            
-            if numberOfItemInStockage() == 2:
-                arm_thread.join()
-                res_arm = que.get()
-
-                setOutsideFromInside()
-                servo.setReverse()
-                time.sleep(0.5)
-                servo.stopPwm()
-                time.sleep(0.5)
-                print("Hiding Inside")
-                hideInside()
-                break
-
-            #driveThread = threading.Thread(target=loopDrivingUntilFound, args=())
-            drive_thread = threading.Thread(target=lambda q, arg1: q.put( loopDrivingUntilFound(arg1)), args=(que,"GND"))
-            drive_thread.start()
-
-            arm_thread.join()
-            res_arm = que.get()
-            print("res_arm :", res_arm)
-
-            if drive_thread.is_alive():
-                arm.setServosOurAngle([90,92,92])
-                #hideInside()
-                drive_thread.join()
-
-            res_drive = que.get() 
-            print("res_drive :", res_drive)
-            
-            grabItem("GND")
-
-        while(not JeanMichelDuma.setOrientation(0,5)):
+        distance = abs(JeanMichelDuma.positionX - DistribMatX)
+        steps = stepsFromCm(distance)
+        JeanMichelDuma.goForward(steps)
+        while(JeanMichelDuma.positionX < DistribMatX - 5 ):
             pass
-        
-        JeanMichelDuma.stopMotors()
-        
-        for i in range(0, 4):
-            if i == 0:
-                while(not JeanMichelDuma.goToNewVersion(GallerieRougeX,GallerieRougeY,2)):
-                    pass
-            elif i == 1:
-                while(not JeanMichelDuma.goToNewVersion(GallerieVertX,GallerieVertY,2)):
-                    pass
-            elif i == 2:
-                while(not JeanMichelDuma.goToNewVersion(GallerieBleuX,GallerieBleuY,2)):
-                    pass
-            elif i== 3:
-                break
-
-            while(not JeanMichelDuma.setOrientation(0,2)):
-                pass
-            
-            JeanMichelDuma.block()
-            time.sleep(0.2)
-            JeanMichelDuma.stopMotors()
-
-            grabElementSlot(i)
-            setArmBotGallery()
-            ventouse.drop()
-            setupAfterGrab()
-
-            stockageArray[i] = False
-        
-        hideInside()
-        servo.setDefault()
-
-        JeanMichelDuma.goRight(60000)
+        while(not JeanMichelDuma.setOrientation(0,4)):
+            pass
+        """ JeanMichelDuma.goRight(60000) 
         time.sleep(5)
 
         while(not JeanMichelDuma.goToNewVersion(DistribMatX,DistribMatY,2)):
@@ -328,18 +359,29 @@ def main():
         while(not JeanMichelDuma.setOrientation(0,4)):
             pass
         
-        JeanMichelDuma.stopMotors()
+        JeanMichelDuma.stopMotors() """
 
-        res_drive = loopDrivingUntilFound("DSTB")
+        #-----On est au Distrib-------------
+        res_drive = loopDrivingUntilFound("DSTB") 
         grabItem("DSTB0")
         storeItem()
 
         servo.setReverse()
+        #-----On repart vers la gallerie bleue-----
 
-        while(not JeanMichelDuma.setOrientation(0,5)):
+        while(not JeanMichelDuma.setOrientation(270,5)):
+            pass
+        distance = abs(JeanMichelDuma.positionX - GallerieBleuX)
+        steps = stepsFromCm(distance)*2 #pcq on va sur le cote et CPT
+        JeanMichelDuma.goForward(steps)
+        while(JeanMichelDuma.positionX > GallerieBleuX + 5 ):
+            pass
+        while(not JeanMichelDuma.setOrientation(0,4)):
+            pass
+        while(not JeanMichelDuma.goToNewVersion(GallerieBleuX,GallerieBleuY,2)):
             pass
         
-        JeanMichelDuma.stopMotors()
+        """ JeanMichelDuma.stopMotors()
 
         JeanMichelDuma.goLeft(60000)
         time.sleep(5)
@@ -350,7 +392,7 @@ def main():
         while(not JeanMichelDuma.setOrientation(0,2)):
             pass
 
-        JeanMichelDuma.stopMotors()
+        JeanMichelDuma.stopMotors() """
 
         grabElementSlot(0)
         setArmBotGallery()
@@ -381,6 +423,9 @@ x
  """
 
 TOPIC_BIG_BOT = "BigBot/2"
+
+DIST_START = 50
+STEPS_TO_START = stepsFromCm(DIST_START)
 
 StartX = dict_zones['Start'][0]
 StartY = dict_zones['Start'][1]
@@ -424,8 +469,9 @@ ventouse.setDefault()
 arm.enableTorqueAll()
 arm.setMaxTorqueAll(100)
 arm.setTorqueLimitAll(100)
-arm.MAX_OVERALL_SPEED = 20
-arm.setServosOurAngle([90,92,92])
+arm.setDelayTimeAll(0)
+#arm.MAX_OVERALL_SPEED = 20
+arm.setServosOurAngle([90,90,90])
 
 servo = ServoStock(13, 400, GPIO.BCM)
 

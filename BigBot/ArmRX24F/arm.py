@@ -12,11 +12,13 @@ class Arm():
     ADDR_AX_TORQUE_LIMIT        = 34
     ADDR_AX_MAX_TORQUE          = 14
     ADDR_AX_MOVING              = 46
+    ADDR_AX_DELAY_RETURN        = 5
 
     # Data Byte Length
     LEN_AX_GOAL_POSITION        = 2
     LEN_AX_PRESENT_POSITION     = 2
     LEN_AX_MOVING               = 1
+    LEN_AX_DELAY_RETURN         = 1
 
     # Protocol version
     PROTOCOL_VERSION            = 1.0               # See which protocol version is used in the Dynamixel
@@ -90,6 +92,20 @@ class Arm():
     
     def closePort(self):
         self.portHandler.closePort()
+
+
+    def setDelayTimeAll(self, perc):
+        for i in range(0, self.NBR_SERVO):
+            self.setDelayTimeUidPerc(i, perc)
+
+    
+    def setDelayTimeUidPerc(self, uid, perc):
+        delay_byte = int(255 * (perc/100))
+        dxl_comm_result, dxl_error = self.packetHandler.write1ByteTxRx(self.portHandler, uid, self.ADDR_AX_DELAY_RETURN, delay_byte)
+        if dxl_comm_result != COMM_SUCCESS:
+            print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
+        elif dxl_error != 0:
+            print("%s" % self.packetHandler.getRxPacketError(dxl_error))
 
     
     def setMaxTorqueId(self, uid, perc):
@@ -215,6 +231,15 @@ class Arm():
 
         return dxl_present_position
 
+    
+    def readServoIdMovingStatus(self, uid):
+        dxl_moving_status, dxl_comm_result, dxl_error = self.packetHandler.read1ByteTxRx(self.portHandler, uid, self.ADDR_AX_MOVING)
+        if dxl_comm_result != COMM_SUCCESS:
+            print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
+        elif dxl_error != 0:
+            print("%s" % self.packetHandler.getRxPacketError(dxl_error))
+
+        return dxl_moving_status
 
     def setServoRealAngle(self, uid, angle):
         pos = int(angle/0.29)
@@ -235,10 +260,17 @@ class Arm():
 
         self.moveAllServosToGoalPositions(positions)
 
+    def waitUntiNotMoving(self):
+        is_done = [True, True, True]
+        while(is_done[0] or is_done[1] or is_done[2]):
+            for i in range(0, self.NBR_SERVO):
+                is_done[i] = self.readServoIdMovingStatus(i)
+            #print(is_done)
+
     
     def waitUntiPos(self, angles):
         positions = []
-        
+        currentPos = []
 
         for i in range(0, self.NBR_SERVO):
             pos = int(angles[i]/0.29)
@@ -247,31 +279,26 @@ class Arm():
             positions.append(pos)
 
         is_done = [False, False, False]
-        while(not (is_done[0] or is_done[0] or is_done[0])):
+        while(not (is_done[0] and is_done[1] and is_done[2])):
             for i in range(0, self.NBR_SERVO):
                 currentpos = self.readServoIdPos(i)
+                if len(currentPos) < 3:
+                    currentPos.append(currentpos)
+                else:
+                    currentPos[i] = currentpos
 
-                #print(f"Id{i}, {positions[i]} - {currentpos} = {abs(positions[i] - currentpos)} | {self.DXL_MOVING_STATUS_THRESHOLD}")
                 if (abs(positions[i] - currentpos) < self.DXL_MOVING_STATUS_THRESHOLD):
+                    #print(f"Is good Id{i}, {positions[i]} - {currentpos} = {abs(positions[i] - currentpos)}")
                     is_done[i] = True
+                '''else:
+                    print(f"Is wrong Id{i}, {positions[i]} - {currentpos} = {abs(positions[i] - currentpos)}")
 
-    
-    def waitUntilNotMoving(self):
-        is_all_moving = [True, True, True]
-        while(is_all_moving[0] or is_all_moving[1] or is_all_moving[2]):
-            dxl_comm_result = self.groupBulkRead.txRxPacket()
-            if dxl_comm_result != COMM_SUCCESS:
-                print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
+            print("Is done :", is_done)
 
-            for i in range(0, self.NBR_SERVO):
-                if is_all_moving[i]:
-                    dxl_getdata_result = self.groupBulkRead.isAvailable(i, self.ADDR_AX_MOVING, self.LEN_AX_MOVING)
-                    if dxl_getdata_result != True:
-                        print("[ID:%03d] groupBulkRead getdata failed" % i)
-
-                    value = self.groupBulkRead.getData(i, self.ADDR_AX_MOVING, self.LEN_AX_MOVING)
-                    print("VALUE IS MOVING :", value)
-                    is_all_moving[i] = value
+        print("Done")
+        print(f"Id{0}, {positions[0]} - {currentPos[0]} = {abs(positions[0] - currentPos[0])}")
+        print(f"Id{1}, {positions[1]} - {currentPos[1]} = {abs(positions[1] - currentPos[1])}")
+        print(f"Id{2}, {positions[2]} - {currentPos[2]} = {abs(positions[2] - currentPos[2])}")'''
 
 
     def setServoIdOurAngle(self, uid, angle):
@@ -316,9 +343,20 @@ class Arm():
         newAngles.append(150+angles[1])
         newAngles.append(150-angles[2])
 
+        old_speed = self.MAX_OVERALL_SPEED
+
         self.setMovSpeedBeforeMoving(newAngles)
         self.setServosRealAngles(newAngles)
         self.waitUntiPos(newAngles)
+        #self.waitUntiNotMoving()
+
+        '''time.sleep(0.05)
+        self.MAX_OVERALL_SPEED = 5
+        self.setMovSpeedBeforeMoving(newAngles)
+        self.setServosRealAngles(newAngles)
+        self.waitUntiNotMoving()
+
+        self.MAX_OVERALL_SPEED = old_speed'''
 
 
     def setServoToXYWithAngle(self, x, y, phi):

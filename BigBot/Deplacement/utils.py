@@ -1,5 +1,5 @@
 from enum import IntEnum
-from math import sqrt
+from math import sqrt,pi
 FORWARD = 1
 BACKWARD = 0
 ON = 1
@@ -174,3 +174,13 @@ def set_value(temp,value,bit):
     else:
         temp = clear_bit(temp,bit)
     return temp
+
+def stepsFromCm(distanceInCM):
+    C_STEP_MODE = 2 #divider microsteps
+    C_STEP_PER_REVOLUTION = 200 #1 step = 1.8°
+    C_DIAMETER_WHEEL = 4.8 #diameter wheel
+    C_PERIMETER_WHEEL = pi*C_DIAMETER_WHEEL #perimeter wheel
+    C_STEPS_FOR_1CM = 2*(C_STEP_PER_REVOLUTION*C_STEP_MODE)/C_PERIMETER_WHEEL # le 2* c'est pcq l'arduino fait 2 changements d'états pour 1 step => a corriger
+
+    steps = C_STEPS_FOR_1CM*distanceInCM
+    return int(steps)

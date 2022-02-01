@@ -3,7 +3,7 @@ import math
 import time
 import sys
 import numpy as np
-from .utils import computeDict,_set_motor,getDistance
+from utils import computeDict,_set_motor,getDistance,stepsFromCm
 
 
 #TODO Calibration avec item dans le chasse neige
@@ -24,8 +24,8 @@ class Robot:
     posArray = [[]]
     dict_speed = {
         'Very slow' : 128,
-        'Slow' : 64,
-        'Medium' : 32,
+        'Slow' : 27,
+        'Medium' : 16,
         'Fast' : 8,
     }
 
@@ -35,11 +35,11 @@ class Robot:
         self.positionX = 0
         self.positionY = 0
         self.orientationZ = 90
-        self.offsetX = 2.5
+        self.offsetX = 2.65
         self.offsetY = 5.2 #la camera est 5.2cm � droite du centre du robot
         self.offsetDistrib = 17.5
         self.deadBandY = 1
-        self.deadBandAngle = 7
+        self.deadBandAngle = 8
         self.reg = 0
         self.PORT = "/dev/tty_ARDUINO_USB"
         self.ser = serial.Serial (self.PORT, baudrate = 115200)
@@ -69,7 +69,6 @@ class Robot:
                 MSB = arrayofBytes[0]
                 LSB = arrayofBytes[1]
                 array = [start,cmd,reg,MSB,LSB,stop]
-                print(array)
             message = bytearray(array)   	
             self.ser.write(message)
         except:
@@ -206,7 +205,7 @@ class Robot:
         print("Angle To Target = " + str(angleToTarget))
         print("Current pos X,Y = " + str(self.positionX) + " , " + str(self.positionY))
         if(distance > offset_max_distance):
-            if(self.setOrientation(angleToTarget)): #si �a return 1 c'est que la rotation est OK
+            if(self._setOrientation(angleToTarget)): #si �a return 1 c'est que la rotation est OK
                 self.speed = self.dict_speed['Medium'] #donc on peut avancer
                 print("Forward")
                 self.goForward()
@@ -241,11 +240,9 @@ class Robot:
         self.block()
         return 1
 
-    def setOrientation(self,angleToReach,offset_max_angle = 15):
-        #print("Angle to Reach = ",angleToReach)
-        #print("Robot Angle = ",self.orientationZ)
+    def _setOrientation(self,angleToReach,offset_max_angle = 15):
         angleToAchieve = ((angleToReach-self.orientationZ +540)%360)-180  #https://math.stackexchange.com/questions/110080/shortest-way-to-achieve-target-angle/2898118)
-        if(abs(angleToAchieve) > 15):
+        if(abs(angleToAchieve) > 18):
             self.speed = self.dict_speed['Medium'] #si on doit faire un grand angle, on va vite
         else:
             self.speed = self.dict_speed['Slow']
@@ -258,14 +255,21 @@ class Robot:
                 #print("left")
             return 0
         return 1
+
+    def setOrientation(self,angleToReach,offset_max_angle = 15):
+        if(self._setOrientation(angleToReach,offset_max_angle)):
+            print("ENT LENTGLE EST BONENT")
+            self.stopMotors()
+            return 1
+        else:
+            return 0
     
     def goToNewVersion(self,targetX,targetY,offset = 5):
         deltaX = targetX -  self.positionX
         deltaY = targetY -  self.positionY
         arrived = 0
-        offset = offset + 0.1*deltaY
-        #print("deltaX =", deltaX)
-        #print("deltaY =", deltaY)
+        offset = offset
+
         if(self.setOrientationForTranslation()): #on est align� c'est bon
             if(deltaY > offset):
                 self.translateOnYAxis(1)
@@ -336,12 +340,33 @@ class Robot:
         cadran = self.orientationZ // 90
         angleToDir = self.orientationZ % 90
         if(angleToDir < 45):
-            if(self.setOrientation(cadran * 90,10)):
+            if(self._setOrientation(cadran * 90,10)):
                 return 1
         else:
-            if(self.setOrientation((cadran+1) * 90,10)):
+            if(self._setOrientation((cadran+1) * 90,10)):
                 return 1
         return 0
+
+    def monitorSteps(self,startX,startY,targetX,targetY): #TODO 
+        startDeltaX = startX - targetX
+        startDeltaY = startY - targetY
+        start_dist = getDistance([startDeltaX,startDeltaY])
+        print("Original distance = ",start_dist)
+        currentDeltaX = abs(self.positionX - targetX)
+        currentDeltaY = abs(self.positionY - targetY)
+        current_dist = getDistance([currentDeltaX,currentDeltaY])
+        print("Current distance = ",current_dist)
+        if(current_dist > start_dist+15): #La distance grandit, y a une couille
+            print("Something is wrong in the direction")
+            return 1
+        elif(currentDeltaX < 5 and currentDeltaY < 5): #on est arrivé
+            print("Arrived")
+            return 1
+        else:
+            return 0
+
+    def waitForSteps(self,steps):
+        time.sleep((steps/500)+0.5)
         
      
 
