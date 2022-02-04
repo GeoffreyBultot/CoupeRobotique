@@ -5,10 +5,19 @@ import utils
 r = Robot()
 time.sleep(1)
 
-for i in range(40,16,-5):
-    r.speed = i
-    r.goLeft()
-    time.sleep(i/100)
-time.sleep(2)
+stepsGallery = stepsFromCm(70)
+stepsStart = stepsFromCm(77)
+print(stepsStart)
+print(stepsGallery)
 
+tour = 5435
+r.rotationLeft(1)
+time.sleep(0.1)
+
+
+r.goForward(stepsStart)
+print(r.stepsForAngle(103))
+r.rotationLeft(r.stepsForAngle(103))
+time.sleep(5)
+time.sleep(5)
 r.stopMotors()

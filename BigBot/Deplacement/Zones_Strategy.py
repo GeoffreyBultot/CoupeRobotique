@@ -1,8 +1,8 @@
 dict_zones ={
 	"tag42_Abs": (150,125),
-	"Galerie_Bleu":(59,29),
-	"Galerie_Vert":(82,29),
-	"Galerie_Rouge":(107,30),
+	"Galerie_Bleu":(59,29+2),
+	"Galerie_Vert":(82,29+2),
+	"Galerie_Rouge":(107,29+2),
 	"TresorBleu":(90,55),
 	"TresorVert":(83,67),
 	"TresorRouge":(90,79),

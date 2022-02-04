@@ -290,8 +290,17 @@ class Arm():
                 if (abs(positions[i] - currentpos) < self.DXL_MOVING_STATUS_THRESHOLD):
                     #print(f"Is good Id{i}, {positions[i]} - {currentpos} = {abs(positions[i] - currentpos)}")
                     is_done[i] = True
-                '''else:
-                    print(f"Is wrong Id{i}, {positions[i]} - {currentpos} = {abs(positions[i] - currentpos)}")
+                else:
+                    #print(f"Is wrong Id{i}, {positions[i]} - {currentpos} = {abs(positions[i] - currentpos)}")
+                    res_mov = self.readServoIdMovingStatus(i)
+                    #print("res_mov :", res_mov)
+                    if not res_mov:
+                        #print(f"Servo {i} not good position + not moving => Should correct")
+                        self.setServosRealAngles(angles)
+                    '''else:
+                        print(f"Servo {i} not good positiobn but moving, keep going buddy")
+
+
 
             print("Is done :", is_done)
 

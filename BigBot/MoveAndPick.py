@@ -161,6 +161,34 @@ def storeItem():
             isArmMoving = False
             return True
 
+def goToGallery(i):
+    distanceBetweenGallery = abs(GallerieRougeX - GallerieVertX)
+    steps = stepsFromCm(distanceBetweenGallery)
+    if i == 0:
+        while(not JeanMichelDuma.goToNewVersion(GallerieRougeX,GallerieRougeY,2)):
+            pass
+    elif i == 1:
+        JeanMichelDuma.goLeft(steps)
+        """ while(JeanMichelDuma.positionX > GallerieVertX + 6 ):
+            pass """
+        time.sleep(3)
+        while(not JeanMichelDuma.goToNewVersion(GallerieVertX,GallerieVertY,2)):
+            pass
+    elif i == 2:
+        JeanMichelDuma.goLeft(steps)
+        """ while(JeanMichelDuma.positionX > GallerieBleuX + 6 ):
+            pass """
+        time.sleep(3)
+        while(not JeanMichelDuma.goToNewVersion(GallerieBleuX,GallerieBleuY,2)):
+            pass
+    elif i== 3:
+        pass
+
+        
+def setGalleryBot(i):
+    grabElementSlot(i)
+    setArmBotGallery()
+
 
 def loopDrivingUntilFound(pos_el):
     global isArmMoving
@@ -213,7 +241,7 @@ def loopDrivingUntilFound(pos_el):
                         print("steaup")
                         return "GND"
                 elif pos_el == "DSTB":
-                    if(JeanMichelDuma.setOrientation(0,4)):
+                    if(JeanMichelDuma.setOrientation(0,2)):
                         if(JeanMichelDuma.goToDistributeur(coord_xyz)):
                             print("steaup")
                             return "DSTB"
@@ -228,21 +256,33 @@ def loopDrivingUntilFound(pos_el):
         cv2.destroyAllWindows()
 
 
+def reverseStorageSafe():
+    setOutsideFromInside()
+    servo.setReverse()
+    time.sleep(0.5)
+    servo.stopPwm()
+    time.sleep(0.5)
+    print("Hiding Inside")
+    hideInside()
+
+
 def campementBrr():
     while(not JeanMichelDuma.goToNewVersion(CampementX,CampementY,2)):
         pass
+
 
 def flexBrr():
     for i in range(0, 25):
         flex()
 
+
 def goToStartPosition():
-    while(not JeanMichelDuma.goToNewVersion(StartX,StartY)): #va a la position de départ
-        pass 
     JeanMichelDuma.goForward(STEPS_TO_START)
-    time.sleep(4)
-    while(not JeanMichelDuma.setOrientation(40,5)): #s'oriente pour les tag
-        pass
+    JeanMichelDuma.rotationLeft(JeanMichelDuma.stepsForAngle(103))
+    time.sleep(6)
+    """while(not JeanMichelDuma.setOrientation(40,5)): #s'oriente pour les tag
+        pass"""
+
 
 def getFirst3Items():
     res_drive = loopDrivingUntilFound("GND")
@@ -256,14 +296,6 @@ def getFirst3Items():
         if numberOfItemInStockage() >= 2:
             arm_thread.join()
             res_arm = que.get()
-
-            setOutsideFromInside()
-            servo.setReverse()
-            time.sleep(0.5)
-            servo.stopPwm()
-            time.sleep(0.5)
-            print("Hiding Inside")
-            hideInside()
             break
 
         drive_thread = threading.Thread(target=lambda q, arg1: q.put( loopDrivingUntilFound(arg1)), args=(que,"GND"))
@@ -282,41 +314,40 @@ def getFirst3Items():
         
         grabItem("GND")
 
+
 def placeItemsInGallery():
-    while(not JeanMichelDuma.setOrientation(0,5)):
+    while(not JeanMichelDuma.setOrientation(3,5)):
             pass
         
     JeanMichelDuma.stopMotors()
-    distanceBetweenGallery = abs(GallerieRougeX - GallerieVertX)
-    steps = stepsFromCm(distanceBetweenGallery)
-    for i in range(0, 4):
-        if i == 0:
-            while(not JeanMichelDuma.goToNewVersion(GallerieRougeX,GallerieRougeY,2)):
-                pass
-        elif i == 1:
-            JeanMichelDuma.goLeft(steps)
-            while(JeanMichelDuma.positionX > GallerieVertX + 6 ):
-                pass
-            while(not JeanMichelDuma.goToNewVersion(GallerieVertX,GallerieVertY,2)):
-                pass
-        elif i == 2:
-            JeanMichelDuma.goLeft(steps)
-            while(JeanMichelDuma.positionX > GallerieBleuX + 6 ):
-                pass
-            while(not JeanMichelDuma.goToNewVersion(GallerieBleuX,GallerieBleuY,2)):
-                pass
-        elif i== 3:
-            break
 
-        while(not JeanMichelDuma.setOrientation(0,2)):
+    storage_thread = threading.Thread(target=lambda q: q.put(reverseStorageSafe()), args=(que,))
+    storage_thread.start()
+    
+    for i in range(0, 4):
+        drive_thread = threading.Thread(target=lambda q, arg1: q.put(goToGallery(arg1)), args=(que,i))
+        drive_thread.start()
+
+        storage_thread.join()
+
+        if i!= 3:
+            arm_thread = threading.Thread(target=lambda q, arg1: q.put(setGalleryBot(arg1)), args=(que,i))
+            arm_thread.start()
+
+        arm_thread.join()
+        drive_thread.join()
+
+        while(not JeanMichelDuma.setOrientation(0,2)): #TODO do with steps
             pass
+        dist = JeanMichelDuma.positionY - 28 #TODO CHANGER
+        steps = abs(stepsFromCm(dist))
+        JeanMichelDuma.goForward(steps)
+        time.sleep(steps/1000)
         
         JeanMichelDuma.block()
-        time.sleep(0.2)
+        time.sleep(0.3)
         JeanMichelDuma.stopMotors()
 
-        grabElementSlot(i)
-        setArmBotGallery()
         ventouse.drop()
         setupAfterGrab()
 
@@ -325,19 +356,31 @@ def placeItemsInGallery():
     hideInside()
     servo.setDefault()
 
+
+def goGalleryBluePseudoFinal():
+    while(not JeanMichelDuma.setOrientation(270,5)):
+        pass
+    distance = abs(JeanMichelDuma.positionX - GallerieBleuX)
+    steps = stepsFromCm(distance)*2 #pcq on va sur le cote et CPT
+    JeanMichelDuma.goForward(steps)
+    while(JeanMichelDuma.positionX > GallerieBleuX + 5 ):
+        pass
+    while(not JeanMichelDuma.setOrientation(0,4)):
+        pass
+    while(not JeanMichelDuma.goToNewVersion(GallerieBleuX,GallerieBleuY,2)):
+        pass
+
+
 def main():
     initUndis()
     MQQT_thread = threading.Thread(target=data_Thread, args=(42,))
     MQQT_thread.start()
     print("[DEBUG	] Thread MQTT Started")
     try:
-        """ 
+         
         goToStartPosition()
         getFirst3Items()
-       """
         placeItemsInGallery()
-        
-
 
         #-----#On est à la gallerie bleue, on va chercher dans le stockage--------
         #New version
@@ -346,8 +389,10 @@ def main():
         distance = abs(JeanMichelDuma.positionX - DistribMatX)
         steps = stepsFromCm(distance)
         JeanMichelDuma.goForward(steps)
-        while(JeanMichelDuma.positionX < DistribMatX - 5 ):
-            pass
+        startTime = time.time()
+        endTime = startTime
+        while(JeanMichelDuma.positionX < DistribMatX - 5 and (endTime - startTime) < 6):
+            endTime = time.time()
         while(not JeanMichelDuma.setOrientation(0,4)):
             pass
         """ JeanMichelDuma.goRight(60000) 
@@ -366,20 +411,15 @@ def main():
         grabItem("DSTB0")
         storeItem()
 
-        servo.setReverse()
+        storage_thread = threading.Thread(target=lambda q: q.put(reverseStorageSafe()), args=(que,))
+        storage_thread.start()
         #-----On repart vers la gallerie bleue-----
+        drive_thread = threading.Thread(target=lambda q: q.put(goGalleryBluePseudoFinal()), args=(que,))
+        drive_thread.start()
 
-        while(not JeanMichelDuma.setOrientation(270,5)):
-            pass
-        distance = abs(JeanMichelDuma.positionX - GallerieBleuX)
-        steps = stepsFromCm(distance)*2 #pcq on va sur le cote et CPT
-        JeanMichelDuma.goForward(steps)
-        while(JeanMichelDuma.positionX > GallerieBleuX + 5 ):
-            pass
-        while(not JeanMichelDuma.setOrientation(0,4)):
-            pass
-        while(not JeanMichelDuma.goToNewVersion(GallerieBleuX,GallerieBleuY,2)):
-            pass
+        storage_thread.join()
+        drive_thread.join()
+        
         
         """ JeanMichelDuma.stopMotors()
 
@@ -395,7 +435,15 @@ def main():
         JeanMichelDuma.stopMotors() """
 
         grabElementSlot(0)
-        setArmBotGallery()
+        setArmTopGallery()
+        dist = JeanMichelDuma.positionY - 26 #TODO CHANGER
+        steps = abs(stepsFromCm(dist))
+        JeanMichelDuma.goForward(steps)
+        time.sleep(steps/1000)
+        
+        JeanMichelDuma.block()
+        time.sleep(0.1)
+        JeanMichelDuma.stopMotors()
         ventouse.drop()
         
         print("steaup final")
@@ -424,7 +472,7 @@ x
 
 TOPIC_BIG_BOT = "BigBot/2"
 
-DIST_START = 50
+DIST_START = 77
 STEPS_TO_START = stepsFromCm(DIST_START)
 
 StartX = dict_zones['Start'][0]
