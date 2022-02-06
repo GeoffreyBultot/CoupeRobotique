@@ -1,9 +1,11 @@
+
 import serial
 import math
 import time
 import sys
 import numpy as np
 from .utils import computeDict,_set_motor,getDistance,stepsFromCm
+from enum import Enum,auto
 
 
 #TODO Calibration avec item dans le chasse neige
@@ -28,6 +30,8 @@ class Robot:
         'Medium' : 16,
         'Fast' : 8,
     }
+
+
 
    
     def __init__(self):
@@ -160,34 +164,35 @@ class Robot:
             self.goForward()
 
 
-    def approachTargetUsingRotation(self,targetXYZ,angleTAG,offset_max_angle  = 15): #s'approche en utilisant le chemin le plus court
-        targetX = targetXYZ[0]
-        targetY = targetXYZ[1]
-        dist = getDistance(targetXYZ)
-        targetY = targetY + self.offsetY
-        self.speed = self.dict_speed['Slow']
+    def approachTargetUsingRotation(self,targetX,targetY,offset = 8): #s'approche en utilisant le chemin le plus court
+        targetX -= self.positionX
+        targetY -= self.positionY
+        dist = math.sqrt(targetX**2 + targetY**2)
         print("Dist = ",dist)
-        if(dist < 15):
-            print("Finished first func")
-            return 1
-        anglexy = math.degrees(math.atan(targetX / targetY )) #calcule l'angle
-        if(anglexy < 0):
-            anglexy = -(90+anglexy)
-        elif(anglexy > 0):
-            anglexy = 90-anglexy  
-        print("Angle XY = " + str(anglexy))
-        if(anglexy > offset_max_angle or anglexy < -offset_max_angle  ):
-            if(anglexy > 0):
-                self.rotationRight()
-                print("RIGHT")
-            else:
-                self.rotationLeft()
-                print("Left")
-        else:
-            self.speed = self.dict_speed['Medium']
-            self.goForward()
-            print("Forward")
-        return 0
+        
+        quadrants = self._quadrant(targetX,targetY)
+        if(quadrants == self.Quandrants.FIRST or quadrants == self.Quandrants.FOURTH ): #x positif
+            angle = 90 + math.degrees(math.atan(targetX / targetY ))
+        elif(quadrants == self.Quandrants.SECOND or quadrants == self.Quandrants.THIRD): #x negatif
+            angle = 270 + math.degrees(math.atan(targetX / targetY ))
+        elif(quadrants == self.Quandrants.POS_X ):
+            angle = 90
+        elif(quadrants == self.Quandrants.NEG_X ):
+            angle = 270
+        elif(quadrants == self.Quandrants.POS_Y ):
+            angle = 180
+        elif(quadrants == self.Quandrants.NEG_Y ):
+            angle = 0
+        while(not self._setOrientation(angle,3)): #bloque tant qu'on a pas fait l'angle
+            pass
+        steps = stepsFromCm(dist)
+        self.goForward(steps)
+        self.waitForSteps(steps)
+        return 1
+
+        
+
+
 
             
         
@@ -245,17 +250,17 @@ class Robot:
         return 1
 
     def _setOrientation(self,angleToReach,offset_max_angle = 15):
-        angleToAchieve = ((angleToReach-self.orientationZ +540)%360)-180
+        """ angleToAchieve = ((angleToReach-self.orientationZ +540)%360)-180
         stepsToDo = self.stepsForAngle(angleToAchieve)
         if(abs(angleToAchieve) > offset_max_angle):
             if(angleToAchieve  > 0):
                 self.rotationRight(stepsToDo)      
             else:
                 self.rotationLeft(stepsToDo)
-            time.sleep(stepsToDo/1500)
+            time.sleep(stepsToDo/1500) #changer le sleep 
             return 0
-        return 1
-        """ angleToAchieve = ((angleToReach-self.orientationZ +540)%360)-180  #https://math.stackexchange.com/questions/110080/shortest-way-to-achieve-target-angle/2898118)
+        return 1 """
+        angleToAchieve = ((angleToReach-self.orientationZ +540)%360)-180  #https://math.stackexchange.com/questions/110080/shortest-way-to-achieve-target-angle/2898118)
         if(abs(angleToAchieve) > 18):
             self.speed = self.dict_speed['Medium'] #si on doit faire un grand angle, on va vite
         else:
@@ -268,7 +273,7 @@ class Robot:
                 self.rotationLeft()
                 #print("left")
             return 0
-        return 1 """
+        return 1 
 
     def setOrientation(self,angleToReach,offset_max_angle = 15):
         if(self._setOrientation(angleToReach,offset_max_angle)):
@@ -361,31 +366,74 @@ class Robot:
                 return 1
         return 0
 
-    def monitorSteps(self,startX,startY,targetX,targetY): #TODO 
-        startDeltaX = startX - targetX
+    def monitorSteps(self,targetX,targetY): #TODO
+        currentDeltaX = abs(self.positionX - targetX)
+        currentDeltaY = abs(self.positionY - targetY)
+        """ startDeltaX = startX - targetX
         startDeltaY = startY - targetY
         start_dist = getDistance([startDeltaX,startDeltaY])
         print("Original distance = ",start_dist)
-        currentDeltaX = abs(self.positionX - targetX)
-        currentDeltaY = abs(self.positionY - targetY)
         current_dist = getDistance([currentDeltaX,currentDeltaY])
         print("Current distance = ",current_dist)
         if(current_dist > start_dist+15): #La distance grandit, y a une couille
             print("Something is wrong in the direction")
-            return 1
-        elif(currentDeltaX < 5 and currentDeltaY < 5): #on est arrivé
+            return 1 """
+        if(currentDeltaX < 5 and currentDeltaY < 5): #on est arrivé
             print("Arrived")
             return 1
         else:
             return 0
 
     def waitForSteps(self,steps):
-        time.sleep((steps/500)+0.5)
+        time.sleep(steps/1000)
         
     def stepsForAngle(self,angle):
         ratio = angle /360
         steps = self.stepsForRotation * ratio
         return int(abs(steps))
+
+    class Quandrants(Enum):
+        FIRST = auto()
+        SECOND = auto()
+        THIRD = auto()
+        FOURTH = auto()
+        POS_X = auto()
+        NEG_X = auto()
+        POS_Y = auto()
+        NEG_Y = auto()
+        ERROR = auto()
+
+
+
+    # Function to check quadrant
+    def _quadrant(self,x,y):
+        temp = 0
+        if (x > 0 and y > 0):
+            temp = self.Quandrants.FIRST
+
+        elif (x < 0 and y > 0):
+            temp = self.Quandrants.SECOND
+                
+        elif (x < 0 and y < 0):
+            temp = self.Quandrants.THIRD
+            
+        elif (x > 0 and y < 0):
+            temp = self.Quandrants.FOURTH
+                
+        elif (x == 0 and y > 0):
+            temp = self.Quandrants.POS_Y
+            
+        elif (x == 0 and y < 0):
+            temp = self.Quandrants.NEG_Y
+            
+        elif (y == 0 and x < 0):
+            temp = self.Quandrants.NEG_X
+            
+        elif (y == 0 and x > 0):
+            temp = self.Quandrants.POS_X
+        else:
+            temp = self.Quandrants.ERROR
+        return temp
      
 
 #endregion

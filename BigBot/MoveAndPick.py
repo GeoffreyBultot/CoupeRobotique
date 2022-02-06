@@ -113,7 +113,7 @@ def isStockageFull():
 def grabItem(posElement):
     global isArmMoving
     N_forward = 1200
-    N_back = 1500
+    N_back = 500
     JeanMichelDuma.speed = JeanMichelDuma.dict_speed['Slow']
     print(numberOfItemInStockage())
 
@@ -165,6 +165,7 @@ def goToGallery(i):
     distanceBetweenGallery = abs(GallerieRougeX - GallerieVertX)
     steps = stepsFromCm(distanceBetweenGallery)
     if i == 0:
+        JeanMichelDuma.approachTargetUsingRotation(GallerieRougeX,GallerieRougeY) #TODO A TESTER
         while(not JeanMichelDuma.goToNewVersion(GallerieRougeX,GallerieRougeY,2)):
             pass
     elif i == 1:
@@ -176,8 +177,6 @@ def goToGallery(i):
             pass
     elif i == 2:
         JeanMichelDuma.goLeft(steps)
-        """ while(JeanMichelDuma.positionX > GallerieBleuX + 6 ):
-            pass """
         time.sleep(3)
         while(not JeanMichelDuma.goToNewVersion(GallerieBleuX,GallerieBleuY,2)):
             pass
