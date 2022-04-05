@@ -11,7 +11,7 @@ slotPositionDrop = [[50, 90, 55],
                     [85, 85, 30],
                     [105, 65, 25]]
 
-slotPositionGrab = [[65, 43, 70],
+slotPositionGrab = [[65, 45, 70],
                     [80, 53, 50],
                     [100, 35, 45],
                     [130, -15, 65]]
@@ -19,11 +19,11 @@ slotPositionGrab = [[65, 43, 70],
 
 def grabElementGround():
     arm.isInside = False
-    arm.MAX_OVERALL_SPEED = 50
+    arm.MAX_OVERALL_SPEED = 40
     print("---------------\nSetting before sunct")
     arm.setServosOurAngle([20, 30, 90])
 
-    arm.MAX_OVERALL_SPEED = 20
+    arm.MAX_OVERALL_SPEED = 25
     arm.setServosOurAngle([50, 15, 15])
 
     print("Sucking")
@@ -121,7 +121,7 @@ def grabElementSlot(slot):
         arm.setServosOurAngle([32, 67, 80])
     
     if slot==0:
-        arm.MAX_OVERALL_SPEED = 15
+        arm.MAX_OVERALL_SPEED = 10
         print("---------------\nGrabbing 1st")
         arm.setServosOurAngle(slotPositionGrab[0])
     
@@ -226,14 +226,15 @@ def setOutsideFromInside():
     arm.MAX_OVERALL_SPEED = 20
     arm.isInside = False
 
-'''servo = ServoStock(13, 400, GPIO.BCM)
-
+'''
 arm.enableTorqueAll()
 arm.setMaxTorqueAll(100)
 arm.setTorqueLimitAll(100)
 arm.setDelayTimeAll(0)
 
 arm.setServosOurAngle([90,90,90])
+
+servo = ServoStock(13, 400, GPIO.BCM)
 servo.setDefault()
 time.sleep(0.5)
 servo.stopPwm()

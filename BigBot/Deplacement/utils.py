@@ -182,5 +182,5 @@ def stepsFromCm(distanceInCM):
     C_PERIMETER_WHEEL = pi*C_DIAMETER_WHEEL #perimeter wheel
     C_STEPS_FOR_1CM = 2*(C_STEP_PER_REVOLUTION*C_STEP_MODE)/C_PERIMETER_WHEEL # le 2* c'est pcq l'arduino fait 2 changements d'états pour 1 step => a corriger
 
-    steps = C_STEPS_FOR_1CM*distanceInCM
+    steps = C_STEPS_FOR_1CM * distanceInCM
     return int(steps)

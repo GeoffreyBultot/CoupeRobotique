@@ -30,16 +30,13 @@ class Robot:
         'Medium' : 16,
         'Fast' : 8,
     }
-
-
-
    
     def __init__(self):
         
         self.positionX = 0
         self.positionY = 0
         self.orientationZ = 90
-        self.offsetX = 2.65
+        self.offsetX = 3.1#2.65
         self.offsetY = 5.2 #la camera est 5.2cm � droite du centre du robot
         self.offsetDistrib = 17.5
         self.deadBandY = 1
@@ -52,7 +49,7 @@ class Robot:
         self.speed = self.dict_speed['Very slow']
         self.cmdStep = 0x01
         self.cmdNormal = 0x02
-        self.stepsForRotation = 5435
+        self.stepsForRotation = 5550
         #self.posArray = self.initArray
         #_thread.start_new_thread( data_Thread, (1 , ) )
 
@@ -95,16 +92,16 @@ class Robot:
         targetY = targetXYZ[1]
         targetY = targetY + self.offsetY
         dist = getDistance(targetXYZ)# + targetZ**2)
-        print("Target ANGLE = ",targetAngle)
-        angle_normalized = targetAngle%60
-        print("Target X = " + str(targetX) + "Target Y = " + str(targetY))
-        print("Angle = " + str(targetAngle))
+        print("Target ANGLE =", round(targetAngle, 2))
+        angle_normalized = targetAngle % 60
+        print("Target X = " + str(round(targetX, 2)) + " Target Y = " + str(round(targetY, 2)))
+        print("Angle = " + str(round(targetAngle, 2)))
 
         if(dist > 25):
             self.approachTarget(targetX,targetY)
             #print("APPROACHING")
 
-        elif(angle_normalized > 30+self.deadBandAngle or angle_normalized <30 - self.deadBandAngle): #corrige l'angle
+        elif(angle_normalized > 30 + self.deadBandAngle or angle_normalized < 30 - self.deadBandAngle): #corrige l'angle
             self.speed = self.dict_speed['Slow']
             self.correctAngle(targetAngle)
             #print("RECTIFYING ANGLE")
@@ -116,6 +113,7 @@ class Robot:
                 self.goLeft()
             else:
                 self.goRight()
+
         elif(targetX > self.offsetX): #approche finale tout droit
             if(targetX > 8):
                 self.speed = self.dict_speed['Medium']
@@ -123,6 +121,7 @@ class Robot:
                 self.speed = self.dict_speed['Slow']			
             #print("BRRRR")
             self.goForward()
+            
         else: #arrived
             self.block()
             #self.stopMotors()
@@ -130,9 +129,10 @@ class Robot:
         return 0
     
     def correctAngle(self,angle):
-        angle = angle %360
+        print("Aiming for angle = ", angle)
+        angle = angle % 360
         angle = angle % 120
-        if(angle >= 60): #s�lectionne un des 2 cote
+        if(angle >= 60): #sélectionne un des 2 cote
             steps = self.stepsForAngle(angle-60)
             if(angle > 90):
                 print("RotateRight")
@@ -148,11 +148,11 @@ class Robot:
             else:
                 print("RotateLeft")
                 self.rotationLeft(steps)
-        time.sleep(steps/1000)
+        self.waitForSteps(steps)
             
 
         
-    def approachTarget(self,targetX,targetY): #s'approche de la position en s'alignant d'abord en Y et puis en avan�ant
+    def approachTarget(self, targetX, targetY): #s'approche de la position en s'alignant d'abord en Y et puis en avan�ant
         if(abs(targetY) > (self.deadBandY + 0.4*targetX)):
             self.speed = self.dict_speed['Medium']
             if(targetY < 0):
@@ -164,11 +164,11 @@ class Robot:
             self.goForward()
 
 
-    def approachTargetUsingRotation(self,targetX,targetY,offset = 8): #s'approche en utilisant le chemin le plus court
+    def approachTargetUsingRotation(self, targetX, targetY, offset = 8): #s'approche en utilisant le chemin le plus court
         targetX -= self.positionX
         targetY -= self.positionY
         dist = math.sqrt(targetX**2 + targetY**2)
-        print("Dist = ",dist)
+        print("Dist = ", dist)
         
         quadrants = self._quadrant(targetX,targetY)
         if(quadrants == self.Quandrants.FIRST or quadrants == self.Quandrants.FOURTH ): #x positif
@@ -189,12 +189,6 @@ class Robot:
         self.goForward(steps)
         self.waitForSteps(steps)
         return 1
-
-        
-
-
-
-            
         
     def goToUsingLocation(self,targetX,targetY, targetAngle): #TODO translater quand on est align�* Rotate until I see tag ENT ENTENT
         offset_max_distance = 8
@@ -227,40 +221,28 @@ class Robot:
         offsetX = 2
         targetX = targetXYZ[0]
         targetY = targetXYZ[1]
-        targetY = targetY + 5.8 #TODO
+        targetY = targetY + self.offsetY #TODO
         print("Target X = ",targetX)
         print("Target Y = ",targetY)
+        self.speed = self.dict_speed['Slow']
         if(abs(targetY) > self.deadBandY-0.1): #s'aligne 
             print("ALIGNING")
-            self.speed = self.dict_speed['Slow']
             if(targetY < 0):
                 self.goLeft()
             else:
                 self.goRight()
             return 0
         elif(targetX > self.offsetDistrib + offsetX):
-            self.speed = self.dict_speed['Slow']
             self.goForward()
             return 0
         elif(targetX < self.offsetDistrib - offsetX):
-            self.speed = self.dict_speed['Slow']
             self.goBackward()
             return 0
         self.block()
         return 1
 
-    def _setOrientation(self,angleToReach,offset_max_angle = 15):
-        """ angleToAchieve = ((angleToReach-self.orientationZ +540)%360)-180
-        stepsToDo = self.stepsForAngle(angleToAchieve)
-        if(abs(angleToAchieve) > offset_max_angle):
-            if(angleToAchieve  > 0):
-                self.rotationRight(stepsToDo)      
-            else:
-                self.rotationLeft(stepsToDo)
-            time.sleep(stepsToDo/1500) #changer le sleep 
-            return 0
-        return 1 """
-        angleToAchieve = ((angleToReach-self.orientationZ +540)%360)-180  #https://math.stackexchange.com/questions/110080/shortest-way-to-achieve-target-angle/2898118)
+    def _setOrientation(self,angleToReach,offset_max_angle = 12):
+        '''angleToAchieve = ((angleToReach-self.orientationZ +540)%360)-180  #https://math.stackexchange.com/questions/110080/shortest-way-to-achieve-target-angle/2898118)
         if(abs(angleToAchieve) > 18):
             self.speed = self.dict_speed['Medium'] #si on doit faire un grand angle, on va vite
         else:
@@ -273,7 +255,31 @@ class Robot:
                 self.rotationLeft()
                 #print("left")
             return 0
-        return 1 
+        return 1'''
+        angleToAchieve = ((angleToReach-self.orientationZ +540)%360)-180
+        print("Angle to achieve : ", angleToAchieve)
+        stepsToDo = self.stepsForAngle(angleToAchieve)
+        usingSteps = False
+        self.speed = self.dict_speed['Slow']
+        if(abs(angleToAchieve) > 25):
+            usingSteps = True
+        if(abs(angleToAchieve) > offset_max_angle):
+            if(angleToAchieve  > 0):
+                if(usingSteps):
+                    self.rotationRight(stepsToDo)
+                else:
+                    self.rotationRight()
+            else:
+                if(usingSteps):
+                    self.rotationLeft(stepsToDo)
+                else:
+                    self.rotationLeft()
+            if(usingSteps):
+                print("Rotating using steps")
+                self.waitForSteps(stepsToDo)
+            return 0
+        return 1
+        
 
     def setOrientation(self,angleToReach,offset_max_angle = 15):
         if(self._setOrientation(angleToReach,offset_max_angle)):
@@ -287,7 +293,7 @@ class Robot:
         deltaX = targetX -  self.positionX
         deltaY = targetY -  self.positionY
         arrived = 0
-        offset = offset
+        self.debugPositions(targetX, targetY)
 
         if(self.setOrientationForTranslation()): #on est align� c'est bon
             if(deltaY > offset):
@@ -348,7 +354,7 @@ class Robot:
             if(dir):
                 self.goLeft()
             else:
-                self.goLeft()
+                self.goRight()
         if(angle == 0 or angle == 360):
             if(dir):
                 self.goBackward()
@@ -356,13 +362,14 @@ class Robot:
                 self.goForward()
 
     def setOrientationForTranslation(self):
+        offsetAngle = 7
         cadran = self.orientationZ // 90
         angleToDir = self.orientationZ % 90
         if(angleToDir < 45):
-            if(self._setOrientation(cadran * 90,10)):
+            if(self._setOrientation(cadran * 90,offsetAngle)):
                 return 1
         else:
-            if(self._setOrientation((cadran+1) * 90,10)):
+            if(self._setOrientation((cadran+1) * 90,offsetAngle)):
                 return 1
         return 0
 
@@ -385,10 +392,10 @@ class Robot:
             return 0
 
     def waitForSteps(self,steps):
-        time.sleep(steps/1000)
+        time.sleep(steps/1300)
         
     def stepsForAngle(self,angle):
-        ratio = angle /360
+        ratio = angle / 360
         steps = self.stepsForRotation * ratio
         return int(abs(steps))
 
@@ -439,6 +446,10 @@ class Robot:
 #endregion
 
 #region DEBUG
+
+    def debugPositions(self, targetX, targetY):
+        print("My PositionX = " + str(self.positionX) + "My PositionY = " + str(self.positionY))
+        print("TargetX = " + str(targetX) + "My PositionY = " + str(targetY))
 
 
     def goToDebugAligned(self,targetX,targetY, offset_max_distance_x = 15,offset_max_distance_y = 5):

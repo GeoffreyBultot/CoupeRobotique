@@ -101,6 +101,7 @@ class Arm():
     
     def setDelayTimeUidPerc(self, uid, perc):
         delay_byte = int(255 * (perc/100))
+        print(f"Setting {uid} with delay_byte {delay_byte}")
         dxl_comm_result, dxl_error = self.packetHandler.write1ByteTxRx(self.portHandler, uid, self.ADDR_AX_DELAY_RETURN, delay_byte)
         if dxl_comm_result != COMM_SUCCESS:
             print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))

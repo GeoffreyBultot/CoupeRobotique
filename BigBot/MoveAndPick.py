@@ -162,23 +162,22 @@ def storeItem():
             return True
 
 def goToGallery(i):
+    precision = 4
     distanceBetweenGallery = abs(GallerieRougeX - GallerieVertX)
     steps = stepsFromCm(distanceBetweenGallery)
     if i == 0:
         JeanMichelDuma.approachTargetUsingRotation(GallerieRougeX,GallerieRougeY) #TODO A TESTER
-        while(not JeanMichelDuma.goToNewVersion(GallerieRougeX,GallerieRougeY,2)):
+        while(not JeanMichelDuma.goToNewVersion(GallerieRougeX,GallerieRougeY, precision)):
             pass
     elif i == 1:
         JeanMichelDuma.goLeft(steps)
-        """ while(JeanMichelDuma.positionX > GallerieVertX + 6 ):
-            pass """
         time.sleep(3)
-        while(not JeanMichelDuma.goToNewVersion(GallerieVertX,GallerieVertY,2)):
+        while(not JeanMichelDuma.goToNewVersion(GallerieVertX,GallerieVertY, precision)):
             pass
     elif i == 2:
         JeanMichelDuma.goLeft(steps)
         time.sleep(3)
-        while(not JeanMichelDuma.goToNewVersion(GallerieBleuX,GallerieBleuY,2)):
+        while(not JeanMichelDuma.goToNewVersion(GallerieBleuX,GallerieBleuY, precision)):
             pass
     elif i== 3:
         pass
@@ -186,7 +185,7 @@ def goToGallery(i):
         
 def setGalleryBot(i):
     grabElementSlot(i)
-    setArmBotGallery()
+    setArmBotGallery() #setArmBotGallery()
 
 
 def loopDrivingUntilFound(pos_el):
@@ -204,6 +203,7 @@ def loopDrivingUntilFound(pos_el):
         rawCapture = PiRGBArray(camera, size=camera.resolution)
         for frame_pi in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
             frame = frame_pi.array
+            #frame = cv2.remap(frame, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
             
@@ -212,8 +212,6 @@ def loopDrivingUntilFound(pos_el):
             if(idx_42[0].size > 0):
                 ids = np.delete(ids, idx_42[0], idx_42[1])
                 corners = np.delete(corners, idx_42[0], idx_42[1])
-
-            #print("ids !", ids)
 
             if ids is not None and ids.size > 0:
                 for i in range(len(ids)): #trouve le tag le plus proche
@@ -240,15 +238,15 @@ def loopDrivingUntilFound(pos_el):
                         print("steaup")
                         return "GND"
                 elif pos_el == "DSTB":
-                    if(JeanMichelDuma.setOrientation(0,2)):
+                    if(JeanMichelDuma.setOrientation(0,4)):
                         if(JeanMichelDuma.goToDistributeur(coord_xyz)):
                             print("steaup")
                             return "DSTB"
-            '''else:
+            else:
                 print("Not detected")
                 if not isArmMoving:
                     JeanMichelDuma.speed = JeanMichelDuma.dict_speed['Medium']
-                    JeanMichelDuma.rotationLeft()'''
+                    JeanMichelDuma.rotationLeft()
 
             rawCapture.truncate(0)
 
@@ -278,7 +276,7 @@ def flexBrr():
 def goToStartPosition():
     JeanMichelDuma.goForward(STEPS_TO_START)
     JeanMichelDuma.rotationLeft(JeanMichelDuma.stepsForAngle(103))
-    time.sleep(6)
+    time.sleep(4.8)
     """while(not JeanMichelDuma.setOrientation(40,5)): #s'oriente pour les tag
         pass"""
 
@@ -315,8 +313,10 @@ def getFirst3Items():
 
 
 def placeItemsInGallery():
-    while(not JeanMichelDuma.setOrientation(3,5)):
-            pass
+    while(not JeanMichelDuma.setOrientation(0,6)):
+        print("Positioning for Gallery")
+        print("Orientation = ", JeanMichelDuma.orientationZ)
+        pass
         
     JeanMichelDuma.stopMotors()
 
@@ -336,12 +336,13 @@ def placeItemsInGallery():
         arm_thread.join()
         drive_thread.join()
 
-        while(not JeanMichelDuma.setOrientation(0,2)): #TODO do with steps
+        while(not JeanMichelDuma.setOrientation(0,2)):
             pass
+
         dist = JeanMichelDuma.positionY - 28 #TODO CHANGER
         steps = abs(stepsFromCm(dist))
         JeanMichelDuma.goForward(steps)
-        time.sleep(steps/1000)
+        JeanMichelDuma.waitForSteps(steps)
         
         JeanMichelDuma.block()
         time.sleep(0.3)
@@ -376,7 +377,6 @@ def main():
     MQQT_thread.start()
     print("[DEBUG	] Thread MQTT Started")
     try:
-         
         goToStartPosition()
         getFirst3Items()
         placeItemsInGallery()
@@ -511,18 +511,19 @@ galleryColor = ['B','B', 'G', 'R', 'R']
 if team == "P":
     galleryColor.reverse()
 
-ventouse.setDefault()
-
+arm.disableTorqueAll()
 arm.enableTorqueAll()
 arm.setMaxTorqueAll(100)
 arm.setTorqueLimitAll(100)
 arm.setDelayTimeAll(0)
-#arm.MAX_OVERALL_SPEED = 20
+
 arm.setServosOurAngle([90,90,90])
 
 servo = ServoStock(13, 400, GPIO.BCM)
 
-'''servo.setDefault()
+ventouse.setDefault()
+'''
+servo.setDefault()
 time.sleep(1)
 servo.setReverse()
 time.sleep(1)'''
@@ -530,6 +531,5 @@ servo.setDefault()
 time.sleep(1)
 servo.stopPwm()
 time.sleep(1)
-
 
 main()
