@@ -75,7 +75,7 @@ if __name__ == '__main__':
             rotation,_ = cv2.Rodrigues(rvec_xyz)
             rvec_xyz = np.matmul(rotation_matrix, rvec) 
             euleurAngle = rotationMatrixToEulerAngles(rotation)
-            print("Euler Angle = ",euleurAngle)
+            #print("Euler Angle = ",euleurAngle)
             dist = math.sqrt(coord_xyz[0]**2 + coord_xyz[1]**2)
             #print("Dist = ", dist)
             #print("Euler = " ,euleurAngle[2])

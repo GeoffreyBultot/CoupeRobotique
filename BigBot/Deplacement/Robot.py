@@ -7,9 +7,6 @@ import numpy as np
 from .utils import computeDict,_set_motor,getDistance,stepsFromCm
 from enum import Enum,auto
 
-
-#TODO Calibration avec item dans le chasse neige
-
 """ 
 x
 ^
@@ -36,7 +33,7 @@ class Robot:
         self.positionX = 0
         self.positionY = 0
         self.orientationZ = 90
-        self.offsetX = 3.1#2.65
+        self.offsetX = 2.65#2.65
         self.offsetY = 5.2 #la camera est 5.2cm � droite du centre du robot
         self.offsetDistrib = 17.5
         self.deadBandY = 1
@@ -448,8 +445,8 @@ class Robot:
 #region DEBUG
 
     def debugPositions(self, targetX, targetY):
-        print("My PositionX = " + str(self.positionX) + "My PositionY = " + str(self.positionY))
-        print("TargetX = " + str(targetX) + "My PositionY = " + str(targetY))
+        print("My PositionX = " + str(self.positionX) + " My PositionY = " + str(self.positionY))
+        print("TargetX = " + str(targetX) + " TargetY = " + str(targetY))
 
 
     def goToDebugAligned(self,targetX,targetY, offset_max_distance_x = 15,offset_max_distance_y = 5):
@@ -473,10 +470,10 @@ class Robot:
             for motor in range(0,4):
                 print(motor)
                 self.reg = _set_motor(motor,0,1)
-                self.serialWriteReg()
+                self.serialWriteReg(self.cmdNormal)
                 time.sleep(1)
                 self.reg = _set_motor(motor,1,1)
-                self.serialWriteReg()
+                self.serialWriteReg(self.cmdNormal)
                 time.sleep(1)
 
     def debugDirections(self):
@@ -485,7 +482,7 @@ class Robot:
             for key in self.dict:
                 self.reg = self.dict[key]
                 print(key, '->', self.dict[key])
-                self.serialWriteReg()
+                self.serialWriteReg(self.cmdNormal)
                 time.sleep(3)
             
     def debugDirections(self):
@@ -494,7 +491,7 @@ class Robot:
                 for key in self.dict:
                     self.reg = self.dict[key]
                     print(key, '->', self.dict[key])
-                    self.serialWriteReg()
+                    self.serialWriteReg(self.cmdNormal)
                     time.sleep(3)
                 
     def goForward(self,steps = 0):
@@ -503,46 +500,56 @@ class Robot:
             self.serialWriteReg(self.cmdStep,steps)
         else:
             self.serialWriteReg(self.cmdNormal)
+
     def goBackward(self,steps = 0):
         self.reg = self.dict['backward']
         if(steps != 0):
             self.serialWriteReg(self.cmdStep,steps)
         else:
             self.serialWriteReg(self.cmdNormal)
+
     def stopMotors(self,steps = 0):
         self.reg = self.dict['stop']
         if(steps != 0):
             self.serialWriteReg(self.cmdStep,steps)
         else:
             self.serialWriteReg(self.cmdNormal)
+
     def rotationRight(self,steps = 0):
         self.reg = self.dict['rotationRight']
         if(steps != 0):
             self.serialWriteReg(self.cmdStep,steps)
         else:
             self.serialWriteReg(self.cmdNormal)
+
     def rotationLeft(self,steps = 0):
         self.reg = self.dict['rotationLeft']
         if(steps != 0):
             self.serialWriteReg(self.cmdStep,steps)
         else:
             self.serialWriteReg(self.cmdNormal)
+
     def goLeft(self,steps = 0):
         self.reg = self.dict['left']
         if(steps != 0):
             self.serialWriteReg(self.cmdStep,steps)
         else:
             self.serialWriteReg(self.cmdNormal)
+
     def goRight(self,steps = 0):
         self.reg = self.dict['right']
         if(steps != 0):
             self.serialWriteReg(self.cmdStep,steps)
         else:
             self.serialWriteReg(self.cmdNormal)
+
     def block(self,steps = 0):
         self.reg = self.dict['block']
         if(steps != 0):
             self.serialWriteReg(self.cmdStep,steps)
         else:
             self.serialWriteReg(self.cmdNormal)
+
+    def getCurrentDirection(self):
+        return(list(self.dict.keys())[list(self.dict.values()).index(self.reg)]) 
 

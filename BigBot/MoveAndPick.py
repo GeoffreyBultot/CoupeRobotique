@@ -3,6 +3,7 @@ from Deplacement.Robot import *
 from Deplacement.utils import stepsFromCm
 from Deplacement.Zones_Strategy import dict_zones
 from armMov import *
+import PyLidar3
 import numpy as np
 import cv2
 from picamera import PiCamera
@@ -46,6 +47,48 @@ def data_Thread(theadID):
         print(client.connect(C_IP_MQTT, 1883, 60))
         client.loop_forever()
 
+def lidarThread():
+    global Lidar
+    direcsion= "right"
+    LidarX = [0] * 90
+    LidarY = [0] * 90
+    if(Lidar.Connect()):
+        print(Lidar.GetDeviceInfo())
+        gen = Lidar.StartScanning()
+        t = time.time() # start time
+        try:
+            while(True):
+                direcsion = JeanMichelDuma.getCurrentDirection()
+                data = next(gen)
+                offset = lidar_offset_angle[direcsion]
+                for i in range(0,90):
+                    angle = (offset+i)%360
+                    #print(len(data))
+                    LidarX[i] = data[angle] * math.cos(math.radians(angle))
+                    LidarY[i] = data[angle] * math.sin(math.radians(angle))
+                count = 0
+                for angle in range(0,90):
+                    if(direcsion =='forward' or direcsion == 'backward' ):
+                        side_to_check = [abs(ele) for ele in LidarY]
+                    else:
+                        side_to_check = [abs(ele) for ele in LidarY]
+                    #if( side_to_check[angle]>robotSize/2 and
+                    if(side_to_check[angle] > 0):
+                        if(side_to_check[angle] > robotSize/2 and side_to_check[angle] < distanceMax ):
+                            #print(side_to_check[angle])
+                            count+=1
+                if(count>10):
+                    JeanMichelDuma.stopMotors()
+                    print("t troprès")
+
+        except:
+            print("[DEBUG] closing LIDAR")
+            Lidar.StopScanning()
+            Lidar.Disconnect()
+        Lidar.StopScanning()
+        Lidar.Disconnect()
+    else:
+        print("Error connecting to device")
 
 # Calculates rotation matrix to euler angles
 # The result is the same as MATLAB except the order
@@ -266,6 +309,7 @@ def reverseStorageSafe():
 def campementBrr():
     while(not JeanMichelDuma.goToNewVersion(CampementX,CampementY,2)):
         pass
+    exit()
 
 
 def flexBrr():
@@ -376,10 +420,22 @@ def main():
     MQQT_thread = threading.Thread(target=data_Thread, args=(42,))
     MQQT_thread.start()
     print("[DEBUG	] Thread MQTT Started")
+
+    lidar_thread = threading.Thread(target=lidarThread, args=())
+    lidar_thread.start()
+    print("[DEBUG	] Thread LIDAR Started")
     try:
         goToStartPosition()
+        if time.time() > last_time_before_camp:
+            print("go to camp bitch")
+
         getFirst3Items()
+        if time.time() > last_time_before_camp:
+            print("go to camp bitch")
+
         placeItemsInGallery()
+        if time.time() > last_time_before_camp:
+            print("go to camp bitch")
 
         #-----#On est à la gallerie bleue, on va chercher dans le stockage--------
         #New version
@@ -469,13 +525,25 @@ x
 0----->y
  """
 
+PORT_LIDAR = "/dev/ttyUSB1"#"/dev/tty_LIDAR_USB"
 TOPIC_BIG_BOT = "BigBot/2"
 
 DIST_START = 77
 STEPS_TO_START = stepsFromCm(DIST_START)
 
-StartX = dict_zones['Start'][0]
-StartY = dict_zones['Start'][1]
+distanceMax = 200 #mm
+robotSize = 200 #mm
+
+Lidar = PyLidar3.YdLidarX4(PORT_LIDAR)
+
+lidar_offset_angle = {
+    "stop":0,
+    "forward":135,
+    "backward":315,
+    "left":45,
+    "right":225
+}
+
 GallerieRougeX = dict_zones['Galerie_Rouge'][0]
 GallerieRougeY = dict_zones['Galerie_Rouge'][1]
 GallerieVertX = dict_zones['Galerie_Vert'][0]
@@ -532,4 +600,7 @@ time.sleep(1)
 servo.stopPwm()
 time.sleep(1)
 
+start = time.time()
+end = start + 100
+last_time_before_camp = end - 20
 main()
