@@ -81,7 +81,7 @@ if(Obj.Connect()):
 
             count_loop+=1
 
-            if count_loop % 5 == 0:
+            if count_loop == 5:
                 print("Filter")
                 for i in range(360):
                     if angles_count_dict[i] >= 3:
@@ -94,6 +94,7 @@ if(Obj.Connect()):
                         final_y[i] = 0
 
                     angles_count_dict[i] = 0
+                    count_loop = 0
 
 
     except:

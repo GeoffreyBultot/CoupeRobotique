@@ -7,7 +7,7 @@ import numpy as np
 from .utils import computeDict,_set_motor,getDistance,stepsFromCm
 from enum import Enum,auto
 
-""" 
+"""
 x
 ^
 |
@@ -27,9 +27,9 @@ class Robot:
         'Medium' : 16,
         'Fast' : 8,
     }
-   
+
     def __init__(self):
-        
+
         self.positionX = 0
         self.positionY = 0
         self.orientationZ = 90
@@ -47,28 +47,30 @@ class Robot:
         self.cmdStep = 0x01
         self.cmdNormal = 0x02
         self.stepsForRotation = 5550
-        #self.posArray = self.initArray
-        #_thread.start_new_thread( data_Thread, (1 , ) )
+        self.stoppedByObstacle = False
+
 
     def setSerial(self,port,baudrate = 115200):
         if(self.ser.isOpen()):
             self.ser.close()
-        self.ser = serial.Serial(port,baudrate) 
+        self.ser = serial.Serial(port,baudrate)
 
     def serialWriteReg(self,cmd,steps = 0):
-        try: 
+        if(self.stoppedByObstacle):
+            return
+        try:
             start = 123 #start byte
             stop = 253 #steaupent byte
             reg = self.reg
-            if(cmd == self.cmdNormal):           
-                divPWM = self.speed   
+            if(cmd == self.cmdNormal):
+                divPWM = self.speed
                 array = [start,cmd,reg,0,divPWM,stop]
             elif(cmd == self.cmdStep):
                 arrayofBytes = steps.to_bytes(2,'big') #split les steps en 2 byte
                 MSB = arrayofBytes[0]
                 LSB = arrayofBytes[1]
                 array = [start,cmd,reg,MSB,LSB,stop]
-            message = bytearray(array)   	
+            message = bytearray(array)
             self.ser.write(message)
         except:
             e = sys.exc_info()[0]
@@ -78,7 +80,7 @@ class Robot:
                 self.ser.close()
                 self.ser = serial.Serial (self.PORT, baudrate = 115200)
             else:
-                self.ser.open() 
+                self.ser.open()
 #endregion
 
 
@@ -102,8 +104,8 @@ class Robot:
             self.speed = self.dict_speed['Slow']
             self.correctAngle(targetAngle)
             #print("RECTIFYING ANGLE")
-            
-        elif(abs(targetY) > (self.deadBandY)): #s'aligne 
+
+        elif(abs(targetY) > (self.deadBandY)): #s'aligne
             #print("ALIGNING")
             self.speed = self.dict_speed['Slow']
             if(targetY < 0):
@@ -115,16 +117,16 @@ class Robot:
             if(targetX > 8):
                 self.speed = self.dict_speed['Medium']
             else:
-                self.speed = self.dict_speed['Slow']			
+                self.speed = self.dict_speed['Slow']
             #print("BRRRR")
             self.goForward()
-            
+
         else: #arrived
             self.block()
             #self.stopMotors()
             return 1
         return 0
-    
+
     def correctAngle(self,angle):
         print("Aiming for angle = ", angle)
         angle = angle % 360
@@ -146,9 +148,9 @@ class Robot:
                 print("RotateLeft")
                 self.rotationLeft(steps)
         self.waitForSteps(steps)
-            
 
-        
+
+
     def approachTarget(self, targetX, targetY): #s'approche de la position en s'alignant d'abord en Y et puis en avan�ant
         if(abs(targetY) > (self.deadBandY + 0.4*targetX)):
             self.speed = self.dict_speed['Medium']
@@ -166,7 +168,7 @@ class Robot:
         targetY -= self.positionY
         dist = math.sqrt(targetX**2 + targetY**2)
         print("Dist = ", dist)
-        
+
         quadrants = self._quadrant(targetX,targetY)
         if(quadrants == self.Quandrants.FIRST or quadrants == self.Quandrants.FOURTH ): #x positif
             angle = 90 + math.degrees(math.atan(targetX / targetY ))
@@ -186,7 +188,7 @@ class Robot:
         self.goForward(steps)
         self.waitForSteps(steps)
         return 1
-        
+
     def goToUsingLocation(self,targetX,targetY, targetAngle): #TODO translater quand on est align�* Rotate until I see tag ENT ENTENT
         offset_max_distance = 8
         deltaX = self.positionX - targetX
@@ -222,7 +224,7 @@ class Robot:
         print("Target X = ",targetX)
         print("Target Y = ",targetY)
         self.speed = self.dict_speed['Slow']
-        if(abs(targetY) > self.deadBandY-0.1): #s'aligne 
+        if(abs(targetY) > self.deadBandY-0.1): #s'aligne
             print("ALIGNING")
             if(targetY < 0):
                 self.goLeft()
@@ -247,7 +249,7 @@ class Robot:
         if(abs(angleToAchieve) > offset_max_angle):
             if(angleToAchieve  > 0):
                 self.rotationRight()
-                #print("right")      
+                #print("right")
             else:
                 self.rotationLeft()
                 #print("left")
@@ -276,7 +278,7 @@ class Robot:
                 self.waitForSteps(stepsToDo)
             return 0
         return 1
-        
+
 
     def setOrientation(self,angleToReach,offset_max_angle = 15):
         if(self._setOrientation(angleToReach,offset_max_angle)):
@@ -285,7 +287,7 @@ class Robot:
             return 1
         else:
             return 0
-    
+
     def goToNewVersion(self,targetX,targetY,offset = 5):
         deltaX = targetX -  self.positionX
         deltaY = targetY -  self.positionY
@@ -305,9 +307,9 @@ class Robot:
                 arrived = 1
                 self.stopMotors()
         return arrived
-        
 
-            
+
+
     def translateOnXAxis(self,dir): #if dir = 1 X augmente, sinon X diminue
         self.speed = self.dict_speed['Medium']
         cadran = round(self.orientationZ / 90)
@@ -332,7 +334,7 @@ class Robot:
                 self.goRight()
             else:
                 self.goLeft()
-    
+
     def translateOnYAxis(self,dir):
         self.speed = self.dict_speed['Medium']
         cadran = round(self.orientationZ / 90)
@@ -390,7 +392,7 @@ class Robot:
 
     def waitForSteps(self,steps):
         time.sleep(steps/1300)
-        
+
     def stepsForAngle(self,angle):
         ratio = angle / 360
         steps = self.stepsForRotation * ratio
@@ -417,28 +419,28 @@ class Robot:
 
         elif (x < 0 and y > 0):
             temp = self.Quandrants.SECOND
-                
+
         elif (x < 0 and y < 0):
             temp = self.Quandrants.THIRD
-            
+
         elif (x > 0 and y < 0):
             temp = self.Quandrants.FOURTH
-                
+
         elif (x == 0 and y > 0):
             temp = self.Quandrants.POS_Y
-            
+
         elif (x == 0 and y < 0):
             temp = self.Quandrants.NEG_Y
-            
+
         elif (y == 0 and x < 0):
             temp = self.Quandrants.NEG_X
-            
+
         elif (y == 0 and x > 0):
             temp = self.Quandrants.POS_X
         else:
             temp = self.Quandrants.ERROR
         return temp
-     
+
 
 #endregion
 
@@ -484,7 +486,7 @@ class Robot:
                 print(key, '->', self.dict[key])
                 self.serialWriteReg(self.cmdNormal)
                 time.sleep(3)
-            
+
     def debugDirections(self):
             self.speed = self.dict_speed['Medium']
             while(True):
@@ -493,7 +495,7 @@ class Robot:
                     print(key, '->', self.dict[key])
                     self.serialWriteReg(self.cmdNormal)
                     time.sleep(3)
-                
+
     def goForward(self,steps = 0):
         self.reg = self.dict['forward']
         if(steps != 0):
@@ -551,5 +553,5 @@ class Robot:
             self.serialWriteReg(self.cmdNormal)
 
     def getCurrentDirection(self):
-        return(list(self.dict.keys())[list(self.dict.values()).index(self.reg)]) 
+        return(list(self.dict.keys())[list(self.dict.values()).index(self.reg)])
 

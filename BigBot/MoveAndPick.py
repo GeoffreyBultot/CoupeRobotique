@@ -49,37 +49,34 @@ def data_Thread(theadID):
 
 def lidarThread():
     global Lidar
-    direcsion= "right"
-    LidarX = [0] * 90
-    LidarY = [0] * 90
+    direction = "right"
+    distToRobot = [0] * 90
+    countOfDetection = [0] * 90
+    countLoop = 0
     if(Lidar.Connect()):
         print(Lidar.GetDeviceInfo())
         gen = Lidar.StartScanning()
-        t = time.time() # start time
         try:
             while(True):
-                direcsion = JeanMichelDuma.getCurrentDirection()
+                direction = JeanMichelDuma.getCurrentDirection()
+                if(direction == 'stop'):
+                    time.sleep(0.1)
+                    continue
                 data = next(gen)
-                offset = lidar_offset_angle[direcsion]
-                for i in range(0,90):
+                offset = lidar_offset_angle[direction]
+                for i in range(0,90): #calcule la distance de l'objet jusqu'au robot
                     angle = (offset+i)%360
-                    #print(len(data))
-                    LidarX[i] = data[angle] * math.cos(math.radians(angle))
-                    LidarY[i] = data[angle] * math.sin(math.radians(angle))
-                count = 0
-                for angle in range(0,90):
-                    if(direcsion =='forward' or direcsion == 'backward' ):
-                        side_to_check = [abs(ele) for ele in LidarY]
-                    else:
-                        side_to_check = [abs(ele) for ele in LidarY]
-                    #if( side_to_check[angle]>robotSize/2 and
-                    if(side_to_check[angle] > 0):
-                        if(side_to_check[angle] > robotSize/2 and side_to_check[angle] < distanceMax ):
-                            #print(side_to_check[angle])
-                            count+=1
-                if(count>10):
-                    JeanMichelDuma.stopMotors()
-                    print("t troprès")
+                    if(direction == 'forward' or direction == 'backward'):
+                        distToRobot[i] = data[angle] * math.cos(math.radians(angle))
+                    elif(direction == 'left' or direction == 'right'):
+                        distToRobot[i] = data[angle] * math.sin(math.radians(angle))
+
+                for i in range(0,90):
+                    if(distToRobot[i] > robotSize/2 and distToRobot[i] < distanceMax): #TODO audric fait ta magie
+                        countOfDetection[i] += 1
+                        if(countOfDetection > 3)
+                countLoop += 1
+
 
         except:
             print("[DEBUG] closing LIDAR")
@@ -125,7 +122,7 @@ theta_camera = math.radians(angle_camera)
 
 rotation_matrix = np.array([[1,           0 ,                0], #rotation axe X
 [0           ,math.cos(theta_camera),               -math.sin(theta_camera)],
-[0,         math.sin(theta_camera),                math.cos(theta_camera)]]) 
+[0,         math.sin(theta_camera),                math.cos(theta_camera)]])
 
 def calculateDistance(list):
     dist = 0
@@ -149,7 +146,7 @@ def isStockageFull():
     for i in range(0, len(stockageArray)):
         if stockageArray[i] == False:
             return False
-    
+
     return True
 
 
@@ -194,7 +191,7 @@ def grabItem(posElement):
 
 def storeItem():
     global isArmMoving
-    
+
     setupAfterGrab()
     for i in range(3, 0, -1):
         if not stockageArray[i]:
@@ -225,7 +222,7 @@ def goToGallery(i):
     elif i== 3:
         pass
 
-        
+
 def setGalleryBot(i):
     grabElementSlot(i)
     setArmBotGallery() #setArmBotGallery()
@@ -235,7 +232,7 @@ def loopDrivingUntilFound(pos_el):
     global isArmMoving
 
     #camera = PiCamera()
-    
+
     distance = []
     ret_array = []
     with PiCamera() as camera:
@@ -249,7 +246,7 @@ def loopDrivingUntilFound(pos_el):
             #frame = cv2.remap(frame, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
-            
+
             idx_42 = np.where(ids == [42])
 
             if(idx_42[0].size > 0):
@@ -333,7 +330,7 @@ def getFirst3Items():
     while True:#numberOfItemInStockage() < 3:
         arm_thread = threading.Thread(target=lambda q: q.put(storeItem()), args=(que,))
         arm_thread.start()
-        
+
         if numberOfItemInStockage() >= 2:
             arm_thread.join()
             res_arm = que.get()
@@ -350,9 +347,9 @@ def getFirst3Items():
             arm.setServosOurAngle([90,90,90])
             drive_thread.join()
 
-        res_drive = que.get() 
+        res_drive = que.get()
         print("res_drive :", res_drive)
-        
+
         grabItem("GND")
 
 
@@ -361,12 +358,12 @@ def placeItemsInGallery():
         print("Positioning for Gallery")
         print("Orientation = ", JeanMichelDuma.orientationZ)
         pass
-        
+
     JeanMichelDuma.stopMotors()
 
     storage_thread = threading.Thread(target=lambda q: q.put(reverseStorageSafe()), args=(que,))
     storage_thread.start()
-    
+
     for i in range(0, 4):
         drive_thread = threading.Thread(target=lambda q, arg1: q.put(goToGallery(arg1)), args=(que,i))
         drive_thread.start()
@@ -387,7 +384,7 @@ def placeItemsInGallery():
         steps = abs(stepsFromCm(dist))
         JeanMichelDuma.goForward(steps)
         JeanMichelDuma.waitForSteps(steps)
-        
+
         JeanMichelDuma.block()
         time.sleep(0.3)
         JeanMichelDuma.stopMotors()
@@ -396,7 +393,7 @@ def placeItemsInGallery():
         setupAfterGrab()
 
         stockageArray[i] = False
-    
+
     hideInside()
     servo.setDefault()
 
@@ -450,19 +447,19 @@ def main():
             endTime = time.time()
         while(not JeanMichelDuma.setOrientation(0,4)):
             pass
-        """ JeanMichelDuma.goRight(60000) 
+        """ JeanMichelDuma.goRight(60000)
         time.sleep(5)
 
         while(not JeanMichelDuma.goToNewVersion(DistribMatX,DistribMatY,2)):
             pass
-        
+
         while(not JeanMichelDuma.setOrientation(0,4)):
             pass
-        
+
         JeanMichelDuma.stopMotors() """
 
         #-----On est au Distrib-------------
-        res_drive = loopDrivingUntilFound("DSTB") 
+        res_drive = loopDrivingUntilFound("DSTB")
         grabItem("DSTB0")
         storeItem()
 
@@ -474,8 +471,8 @@ def main():
 
         storage_thread.join()
         drive_thread.join()
-        
-        
+
+
         """ JeanMichelDuma.stopMotors()
 
         JeanMichelDuma.goLeft(60000)
@@ -495,12 +492,12 @@ def main():
         steps = abs(stepsFromCm(dist))
         JeanMichelDuma.goForward(steps)
         time.sleep(steps/1000)
-        
+
         JeanMichelDuma.block()
         time.sleep(0.1)
         JeanMichelDuma.stopMotors()
         ventouse.drop()
-        
+
         print("steaup final")
 
         arm.disableTorqueAll()
@@ -511,13 +508,13 @@ def main():
         servo.stopPwm()
         exit()
 
-        
+
     except KeyboardInterrupt:
         arm.disableTorqueAll()
         JeanMichelDuma.stopMotors()
         servo.stopPwm()
 
-""" 
+"""
 x
 ^
 |
@@ -538,10 +535,10 @@ Lidar = PyLidar3.YdLidarX4(PORT_LIDAR)
 
 lidar_offset_angle = {
     "stop":0,
-    "forward":135,
-    "backward":315,
-    "left":45,
-    "right":225
+    "forward":45,
+    "left":135,
+    "backward":225,
+    "right":315
 }
 
 GallerieRougeX = dict_zones['Galerie_Rouge'][0]

@@ -73,7 +73,7 @@ def _rotationRight():
     val = set_value(val,BACKWARD,Edir.DIR_FR)
     val = set_value(val,FORWARD,Edir.DIR_RL)
     val = set_value(val,BACKWARD,Edir.DIR_RR)
-    
+
     return val
 
 def _rotationLeft():
@@ -144,12 +144,12 @@ def _goRight():
     val = set_value(val,BACKWARD,Edir.DIR_FR)
     val = set_value(val,BACKWARD,Edir.DIR_RL)
     val = set_value(val,FORWARD,Edir.DIR_RR)
-    
+
 
     return val
 
 
-def _set_motor(n,dir,state): 
+def _set_motor(n,dir,state):
     val = 0
     if(dir):
         val = set_bit(val,2*n)
@@ -160,7 +160,7 @@ def _set_motor(n,dir,state):
     else:
         val = clear_bit(val,2*n + 1)
     return val
-    
+
 
 def set_bit(value, bit):
     return value | (1<<bit)
