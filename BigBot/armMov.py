@@ -111,8 +111,7 @@ def setSlotId(slot):
     ventouse.drop()
     arm.MAX_OVERALL_SPEED = 50
     arm.setServosOurAngle([90,90,90])
-
-
+'''
 def grabElementSlot(slot):
     arm.isInside = False
     arm.MAX_OVERALL_SPEED = 20
@@ -226,7 +225,7 @@ def setOutsideFromInside():
     arm.MAX_OVERALL_SPEED = 20
     arm.isInside = False
 
-'''
+
 arm.enableTorqueAll()
 arm.setMaxTorqueAll(100)
 arm.setTorqueLimitAll(100)
@@ -236,6 +235,7 @@ arm.setServosOurAngle([90,90,90])
 
 servo = ServoStock(13, 400, GPIO.BCM)
 servo.setDefault()
+
 time.sleep(0.5)
 servo.stopPwm()
 

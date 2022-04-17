@@ -14,6 +14,7 @@ import threading
 import _thread
 import paho.mqtt.client as mqtt
 import json
+import argparse
 
 
 from queue import Queue
@@ -38,6 +39,7 @@ def on_message(client, userdata, message):
 
 def data_Thread(theadID):
     C_IP_MQTT = "172.30.40.68"
+    C_IP_MQTT = "192.168.0.17"
     client = mqtt.Client()
     client.on_connect = on_connect
     client.on_message = on_message
@@ -48,11 +50,29 @@ def data_Thread(theadID):
         client.loop_forever()
 
 def lidarThread():
-    global Lidar
+    PORT_LIDAR = "/dev/ttyUSB1"#"/dev/tty_LIDAR_USB"
+    Lidar = PyLidar3.YdLidarX4(PORT_LIDAR)
+    lidar_offset_angle = {
+        "stop":0,
+        "forward":45,
+        "left":135,
+        "backward":225,
+        "right":315
+    }
+
+    size_gliss = 10
+    tresh = 7
+
+    angles_count_dict = {}
+
+    for i in range(360):
+        angles_count_dict[i] = {}
+        angles_count_dict[i]['gliss'] = [False]*size_gliss
+        angles_count_dict[i]['count'] = 0
+    distanceMax = 300 #mm
+    robotSize = 260 #mm
     direction = "right"
     distToRobot = [0] * 90
-    countOfDetection = [0] * 90
-    countLoop = 0
     if(Lidar.Connect()):
         print(Lidar.GetDeviceInfo())
         gen = Lidar.StartScanning()
@@ -66,16 +86,21 @@ def lidarThread():
                 offset = lidar_offset_angle[direction]
                 for i in range(0,90): #calcule la distance de l'objet jusqu'au robot
                     angle = (offset+i)%360
+                    val_count = angles_count_dict[angle]['count']
                     if(direction == 'forward' or direction == 'backward'):
                         distToRobot[i] = data[angle] * math.cos(math.radians(angle))
                     elif(direction == 'left' or direction == 'right'):
                         distToRobot[i] = data[angle] * math.sin(math.radians(angle))
 
-                for i in range(0,90):
-                    if(distToRobot[i] > robotSize/2 and distToRobot[i] < distanceMax): #TODO audric fait ta magie
-                        countOfDetection[i] += 1
-                        if(countOfDetection > 3)
-                countLoop += 1
+                    if(distToRobot[i] > robotSize/2 and distToRobot[i] < distanceMax):
+                        if val_count != size_gliss:
+                            val_count += 1
+                        else:
+                            val_count -= 1
+                    else:
+                        val_count -= 1
+                    
+                    angles_count_dict[i]['count'] = val_count
 
 
         except:
@@ -203,21 +228,21 @@ def storeItem():
 
 def goToGallery(i):
     precision = 4
-    distanceBetweenGallery = abs(GallerieRougeX - GallerieVertX)
+    distanceBetweenGallery = abs(dict_zones['Galerie_Rouge'][0] - dict_zones['Galerie_Vert'][0])
     steps = stepsFromCm(distanceBetweenGallery)
     if i == 0:
-        JeanMichelDuma.approachTargetUsingRotation(GallerieRougeX,GallerieRougeY) #TODO A TESTER
-        while(not JeanMichelDuma.goToNewVersion(GallerieRougeX,GallerieRougeY, precision)):
+        JeanMichelDuma.approachTargetUsingRotation(dict_zones['Galerie_Rouge'][0],dict_zones['Galerie_Rouge'][1]) #TODO A TESTER
+        while(not JeanMichelDuma.goToNewVersion(dict_zones['Galerie_Rouge'][0],dict_zones['Galerie_Rouge'][1], precision)):
             pass
     elif i == 1:
         JeanMichelDuma.goLeft(steps)
         time.sleep(3)
-        while(not JeanMichelDuma.goToNewVersion(GallerieVertX,GallerieVertY, precision)):
+        while(not JeanMichelDuma.goToNewVersion(dict_zones['Galerie_Vert'][0],dict_zones['Galerie_Vert'][1], precision)):
             pass
     elif i == 2:
         JeanMichelDuma.goLeft(steps)
         time.sleep(3)
-        while(not JeanMichelDuma.goToNewVersion(GallerieBleuX,GallerieBleuY, precision)):
+        while(not JeanMichelDuma.goToNewVersion(dict_zones['Galerie_Bleu'][0],dict_zones['Galerie_Bleu'][1], precision)):
             pass
     elif i== 3:
         pass
@@ -304,7 +329,7 @@ def reverseStorageSafe():
 
 
 def campementBrr():
-    while(not JeanMichelDuma.goToNewVersion(CampementX,CampementY,2)):
+    while(not JeanMichelDuma.goToNewVersion(dict_zones['Campement'][0],dict_zones['Campement'][1],2)):
         pass
     exit()
 
@@ -314,9 +339,12 @@ def flexBrr():
         flex()
 
 
-def goToStartPosition():
+def goToStartPosition(side_to_start):
     JeanMichelDuma.goForward(STEPS_TO_START)
-    JeanMichelDuma.rotationLeft(JeanMichelDuma.stepsForAngle(103))
+    if(side_to_start == "mauve"):
+        JeanMichelDuma.rotationRight(JeanMichelDuma.stepsForAngle(103))
+    else:
+        JeanMichelDuma.rotationLeft(JeanMichelDuma.stepsForAngle(103))
     time.sleep(4.8)
     """while(not JeanMichelDuma.setOrientation(40,5)): #s'oriente pour les tag
         pass"""
@@ -401,19 +429,28 @@ def placeItemsInGallery():
 def goGalleryBluePseudoFinal():
     while(not JeanMichelDuma.setOrientation(270,5)):
         pass
-    distance = abs(JeanMichelDuma.positionX - GallerieBleuX)
+    distance = abs(JeanMichelDuma.positionX - dict_zones['Galerie_Bleu'][0])
     steps = stepsFromCm(distance)*2 #pcq on va sur le cote et CPT
     JeanMichelDuma.goForward(steps)
-    while(JeanMichelDuma.positionX > GallerieBleuX + 5 ):
+    while(JeanMichelDuma.positionX > dict_zones['Galerie_Bleu'][0] + 5 ):
         pass
     while(not JeanMichelDuma.setOrientation(0,4)):
         pass
-    while(not JeanMichelDuma.goToNewVersion(GallerieBleuX,GallerieBleuY,2)):
+    while(not JeanMichelDuma.goToNewVersion(dict_zones['Galerie_Bleu'][0],dict_zones['Galerie_Bleu'][1],2)):
         pass
 
 
-def main():
+def startup(side_to_start):
     initUndis()
+    global dict_zones
+    if(side_to_start == "mauve"):
+        dict = {}
+        for ele in dict_zones:
+            pose = dict_zones[ele]
+            dict[ele]=(300-pose[0],pose[1])
+        dict_zones = dict
+        #print(dict_zones)
+
     MQQT_thread = threading.Thread(target=data_Thread, args=(42,))
     MQQT_thread.start()
     print("[DEBUG	] Thread MQTT Started")
@@ -422,7 +459,7 @@ def main():
     lidar_thread.start()
     print("[DEBUG	] Thread LIDAR Started")
     try:
-        goToStartPosition()
+        goToStartPosition(side_to_start)
         if time.time() > last_time_before_camp:
             print("go to camp bitch")
 
@@ -438,19 +475,19 @@ def main():
         #New version
         while(not JeanMichelDuma.setOrientation(90,3)):
             pass
-        distance = abs(JeanMichelDuma.positionX - DistribMatX)
+        distance = abs(JeanMichelDuma.positionX - dict_zones['DispenserMat'][0])
         steps = stepsFromCm(distance)
         JeanMichelDuma.goForward(steps)
         startTime = time.time()
         endTime = startTime
-        while(JeanMichelDuma.positionX < DistribMatX - 5 and (endTime - startTime) < 6):
+        while(JeanMichelDuma.positionX < dict_zones['DispenserMat'][0] - 5 and (endTime - startTime) < 6):
             endTime = time.time()
         while(not JeanMichelDuma.setOrientation(0,4)):
             pass
         """ JeanMichelDuma.goRight(60000)
         time.sleep(5)
 
-        while(not JeanMichelDuma.goToNewVersion(DistribMatX,DistribMatY,2)):
+        while(not JeanMichelDuma.goToNewVersion(dict_zones['DispenserMat'][0],dict_zones['DispenserMat'][1],2)):
             pass
 
         while(not JeanMichelDuma.setOrientation(0,4)):
@@ -478,7 +515,7 @@ def main():
         JeanMichelDuma.goLeft(60000)
         time.sleep(5)
 
-        while(not JeanMichelDuma.goToNewVersion(GallerieBleuX,GallerieBleuY,2)):
+        while(not JeanMichelDuma.goToNewVersion(dict_zones['Galerie_Bleu'][0],dict_zones['Galerie_Bleu'][1],2)):
             pass
 
         while(not JeanMichelDuma.setOrientation(0,2)):
@@ -522,37 +559,11 @@ x
 0----->y
  """
 
-PORT_LIDAR = "/dev/ttyUSB1"#"/dev/tty_LIDAR_USB"
 TOPIC_BIG_BOT = "BigBot/2"
 
 DIST_START = 77
 STEPS_TO_START = stepsFromCm(DIST_START)
 
-distanceMax = 200 #mm
-robotSize = 200 #mm
-
-Lidar = PyLidar3.YdLidarX4(PORT_LIDAR)
-
-lidar_offset_angle = {
-    "stop":0,
-    "forward":45,
-    "left":135,
-    "backward":225,
-    "right":315
-}
-
-GallerieRougeX = dict_zones['Galerie_Rouge'][0]
-GallerieRougeY = dict_zones['Galerie_Rouge'][1]
-GallerieVertX = dict_zones['Galerie_Vert'][0]
-GallerieVertY = dict_zones['Galerie_Vert'][1]
-GallerieBleuX = dict_zones['Galerie_Bleu'][0]
-GallerieBleuY = dict_zones['Galerie_Bleu'][1]
-
-DistribMatX = dict_zones['DispenserMat'][0]
-DistribMatY = dict_zones['DispenserMat'][1]
-
-CampementX = dict_zones['Campement'][0]
-CampementY = dict_zones['Campement'][1]
 
 
 team = "Y" #"P"
@@ -600,4 +611,12 @@ time.sleep(1)
 start = time.time()
 end = start + 100
 last_time_before_camp = end - 20
-main()
+
+if __name__ == '__main__':	
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-s', type=str, required=True, help='side to start [jaune - mauve]:hibou:')
+    args = parser.parse_args()
+    for i in range(0,10):
+        print('[Warning] On commence cote ', args.s)
+    #while(pin == 1)
+    startup(args.s)
