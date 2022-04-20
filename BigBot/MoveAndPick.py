@@ -15,7 +15,7 @@ import _thread
 import paho.mqtt.client as mqtt
 import json
 import argparse
-
+import RPi.GPIO as GPIO
 
 from queue import Queue
 
@@ -618,5 +618,14 @@ if __name__ == '__main__':
     args = parser.parse_args()
     for i in range(0,10):
         print('[Warning] On commence cote ', args.s)
-    #while(pin == 1)
-    startup(args.s)
+    print("[WARNING] wait for TIRER LA CORDE")
+    #   while(pin == 1)
+    
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(22, GPIO.IN)
+    i = GPIO.input(22)
+    print(i)
+    while(i == 1):
+        i = GPIO.input(22)
+        #time.sleep(0.1)
+    #startup(args.s)
