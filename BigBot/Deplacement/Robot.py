@@ -16,9 +16,6 @@ x
  """
 #region Cr�ation objet
 
-
-
-
 class Robot:
     posArray = [[]]
     dict_speed = {
@@ -33,8 +30,8 @@ class Robot:
         self.positionX = 0
         self.positionY = 0
         self.orientationZ = 90
-        self.offsetX = 2.65#2.65
-        self.offsetY = 5.2 #la camera est 5.2cm � droite du centre du robot
+        self.offsetX = 1#2.65
+        self.offsetY = 3.8 #la camera est 5.2cm � droite du centre du robot
         self.offsetDistrib = 17.5
         self.deadBandY = 1
         self.deadBandAngle = 8
@@ -48,6 +45,12 @@ class Robot:
         self.cmdNormal = 0x02
         self.stepsForRotation = 5550
         self.stoppedByObstacle = False
+        
+        self.is_object_in_dir = {'front': False,
+                                'right': False,
+                                'back': False,
+                                'left': False,
+        }
 
 
     def setSerial(self,port,baudrate = 115200):
@@ -126,6 +129,7 @@ class Robot:
             #self.stopMotors()
             return 1
         return 0
+
 
     def correctAngle(self,angle):
         print("Aiming for angle = ", angle)
@@ -396,7 +400,7 @@ class Robot:
     def stepsForAngle(self,angle):
         ratio = angle / 360
         steps = self.stepsForRotation * ratio
-        return int(abs(steps))
+        return int(4*abs(steps))
 
     class Quandrants(Enum):
         FIRST = auto()
@@ -498,17 +502,19 @@ class Robot:
 
     def goForward(self,steps = 0):
         self.reg = self.dict['forward']
-        if(steps != 0):
-            self.serialWriteReg(self.cmdStep,steps)
-        else:
-            self.serialWriteReg(self.cmdNormal)
+        if not self.is_object_in_dir['front']:
+            if(steps != 0):
+                self.serialWriteReg(self.cmdStep,steps)
+            else:
+                self.serialWriteReg(self.cmdNormal)
 
     def goBackward(self,steps = 0):
         self.reg = self.dict['backward']
-        if(steps != 0):
-            self.serialWriteReg(self.cmdStep,steps)
-        else:
-            self.serialWriteReg(self.cmdNormal)
+        if not self.is_object_in_dir['back']:
+            if(steps != 0):
+                self.serialWriteReg(self.cmdStep,steps)
+            else:
+                self.serialWriteReg(self.cmdNormal)
 
     def stopMotors(self,steps = 0):
         self.reg = self.dict['stop']
@@ -533,17 +539,19 @@ class Robot:
 
     def goLeft(self,steps = 0):
         self.reg = self.dict['left']
-        if(steps != 0):
-            self.serialWriteReg(self.cmdStep,steps)
-        else:
-            self.serialWriteReg(self.cmdNormal)
+        if not self.is_object_in_dir['left']:
+            if(steps != 0):
+                self.serialWriteReg(self.cmdStep,steps)
+            else:
+                self.serialWriteReg(self.cmdNormal)
 
     def goRight(self,steps = 0):
         self.reg = self.dict['right']
-        if(steps != 0):
-            self.serialWriteReg(self.cmdStep,steps)
-        else:
-            self.serialWriteReg(self.cmdNormal)
+        if not self.is_object_in_dir['right']:
+            if(steps != 0):
+                self.serialWriteReg(self.cmdStep,steps)
+            else:
+                self.serialWriteReg(self.cmdNormal)
 
     def block(self,steps = 0):
         self.reg = self.dict['block']

@@ -180,7 +180,7 @@ def stepsFromCm(distanceInCM):
     C_STEP_PER_REVOLUTION = 200 #1 step = 1.8°
     C_DIAMETER_WHEEL = 4.8 #diameter wheel
     C_PERIMETER_WHEEL = pi*C_DIAMETER_WHEEL #perimeter wheel
-    C_STEPS_FOR_1CM = 2*(C_STEP_PER_REVOLUTION*C_STEP_MODE)/C_PERIMETER_WHEEL # le 2* c'est pcq l'arduino fait 2 changements d'états pour 1 step => a corriger
+    C_STEPS_FOR_1CM = 8*(C_STEP_PER_REVOLUTION*C_STEP_MODE)/C_PERIMETER_WHEEL # le 2* c'est pcq l'arduino fait 2 changements d'états pour 1 step => a corriger
 
     steps = C_STEPS_FOR_1CM * distanceInCM
     return int(steps)

@@ -112,6 +112,7 @@ def setSlotId(slot):
     arm.MAX_OVERALL_SPEED = 50
     arm.setServosOurAngle([90,90,90])
 
+
 def grabElementSlot(slot):
     arm.isInside = False
     arm.MAX_OVERALL_SPEED = 20
@@ -206,7 +207,7 @@ def hideOutside():
 
 def hideInside():
     arm.MAX_OVERALL_SPEED = 50
-    arm.setServosOurAngle([0,0,0])
+    #arm.setServosOurAngle([0,0,0])
     #time.sleep(0.2)
     arm.setServosOurAngle([0,90,90])
     #time.sleep(0.2)
@@ -225,8 +226,11 @@ def setOutsideFromInside():
     arm.MAX_OVERALL_SPEED = 20
     arm.isInside = False
 
+
+#arm.disableTorqueAll()
 '''
 arm.enableTorqueAll()
+
 arm.setMaxTorqueAll(100)
 arm.setTorqueLimitAll(100)
 arm.setDelayTimeAll(0)

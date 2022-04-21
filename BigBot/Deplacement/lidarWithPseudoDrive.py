@@ -58,21 +58,21 @@ def lidar():
                             ***270°****
                             ***BACK****
                             '''
-                            print(f"Caught object with angle {curr_angle}° and range : {round(dist/10, 2)}cm") 
+                            #print(f"Caught object with angle {curr_angle}° and range : {round(dist/10, 2)}cm") 
                             if 45 <= curr_angle <= 135:
-                                print("Object on the front")
+                                #print("Object on the front")
                                 frontFound = True
 
                             elif 135 < curr_angle < 225:
-                                print("Object on the right")
+                                #print("Object on the right")
                                 rightFound = True
 
                             elif 225 <= curr_angle < 315:
-                                print("Object on the back")
+                                #print("Object on the back")
                                 backFound = True
 
                             elif (315 <= curr_angle <= 360) or (0 <= curr_angle < 45):
-                                print("Object on the left")
+                                #print("Object on the left")
                                 leftFound = True
 
                     if frontFound:
@@ -115,17 +115,29 @@ def brrrRobotTest():
     dirRobot['back'] = True
     dirRobot['left'] = False
     while True:
-        if dirRobot['front'] and not is_object_in_dir['front']:
-            pass#Robot.GoForward()
+        if dirRobot['front']: 
+            if not is_object_in_dir['front']:
+                pass#Robot.GoForward()
+            else:
+                print("OBJECT ON THE FRONT")
 
-        if dirRobot['right'] and not is_object_in_dir['right']:
-            pass#Robot.GoRight()
+        if dirRobot['right']: 
+            if not is_object_in_dir['right']:
+                pass#Robot.GoRight()
+            else:
+                print("OBJECT ON THE RIGHT")
 
-        if dirRobot['back'] and not is_object_in_dir['back']:
-            pass#Robot.GoBack()
+        if dirRobot['back']:
+            if not is_object_in_dir['back']:
+                pass#Robot.GoBack()
+            else:
+                print("OBJECT ON THE BACK")
 
-        if dirRobot['left'] and not is_object_in_dir['left']:
-            pass#Robot.GoLeft()
+        if dirRobot['left']:
+            if not is_object_in_dir['left']:
+                pass#Robot.GoLeft()
+            else:
+                print("OBJECT ON THE LEFT")
         
 print("Ent started")
 is_object_in_dir = {} #GLOBAL

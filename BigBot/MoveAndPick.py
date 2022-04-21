@@ -3,7 +3,6 @@ from Deplacement.Robot import *
 from Deplacement.utils import stepsFromCm
 from Deplacement.Zones_Strategy import dict_zones
 from armMov import *
-import PyLidar3
 import numpy as np
 import cv2
 from picamera import PiCamera
@@ -17,7 +16,7 @@ import json
 import argparse
 import RPi.GPIO as GPIO
 
-from queue import Queue
+import ydlidar
 
 def on_connect(client, userdata, flags, rc):
     if rc==0:
@@ -49,68 +48,128 @@ def data_Thread(theadID):
         print(client.connect(C_IP_MQTT, 1883, 60))
         client.loop_forever()
 
+
 def lidarThread():
-    PORT_LIDAR = "/dev/ttyUSB1"#"/dev/tty_LIDAR_USB"
-    Lidar = PyLidar3.YdLidarX4(PORT_LIDAR)
-    lidar_offset_angle = {
-        "stop":0,
-        "forward":45,
-        "left":135,
-        "backward":225,
-        "right":315
-    }
-
-    size_gliss = 10
-    tresh = 7
-
-    angles_count_dict = {}
-
-    for i in range(360):
-        angles_count_dict[i] = {}
-        angles_count_dict[i]['gliss'] = [False]*size_gliss
-        angles_count_dict[i]['count'] = 0
     distanceMax = 300 #mm
     robotSize = 260 #mm
-    direction = "right"
-    distToRobot = [0] * 90
-    if(Lidar.Connect()):
-        print(Lidar.GetDeviceInfo())
-        gen = Lidar.StartScanning()
+    size_gliss = 5
+
+    last_positive = [False]*size_gliss
+
+    ydlidar.os_init()
+    laser = ydlidar.CYdLidar()
+
+    port = "/dev/tty_LIDAR"
+
+    laser.setlidaropt(ydlidar.LidarPropSerialPort, port)
+    laser.setlidaropt(ydlidar.LidarPropSerialBaudrate, 128000)
+    laser.setlidaropt(ydlidar.LidarPropLidarType, ydlidar.TYPE_TOF)
+    laser.setlidaropt(ydlidar.LidarPropDeviceType, ydlidar.YDLIDAR_TYPE_SERIAL)
+    laser.setlidaropt(ydlidar.LidarPropSingleChannel, True)
+
+    ret = laser.initialize()
+    if ret:
+        ret = laser.turnOn()
+        scan = ydlidar.LaserScan()
         try:
-            while(True):
-                direction = JeanMichelDuma.getCurrentDirection()
-                if(direction == 'stop'):
-                    time.sleep(0.1)
-                    continue
-                data = next(gen)
-                offset = lidar_offset_angle[direction]
-                for i in range(0,90): #calcule la distance de l'objet jusqu'au robot
-                    angle = (offset+i)%360
-                    val_count = angles_count_dict[angle]['count']
-                    if(direction == 'forward' or direction == 'backward'):
-                        distToRobot[i] = data[angle] * math.cos(math.radians(angle))
-                    elif(direction == 'left' or direction == 'right'):
-                        distToRobot[i] = data[angle] * math.sin(math.radians(angle))
+            while ret and ydlidar.os_isOk() :
+                r = laser.doProcessSimple(scan)
+                if r:
+                    frontFound = False
+                    rightFound = False
+                    leftFound = False
+                    backFound = False
+                    for p in scan.points:
+                        last_positive.pop(0)
+                        curr_angle = int(math.degrees(p.angle)+180)
+                        dist = (p.range)*254 #*0.0254*10*1000 #Il renvoie le range en 1/10 de inches, *0.0254 => to dm, *10 to m, *1000 to mm
 
-                    if(distToRobot[i] > robotSize/2 and distToRobot[i] < distanceMax):
-                        if val_count != size_gliss:
-                            val_count += 1
+                        if robotSize/2 < dist < distanceMax:
+                            last_positive.append(True)
                         else:
-                            val_count -= 1
+                            last_positive.append(False)
+
+                        if False not in last_positive:
+                            '''
+                            ***FRONT***
+                            ****90°****
+                            0°*****180° RIGHT
+                            ***270°****
+                            ***BACK****
+                            '''
+                            #print(f"Caught object with angle {curr_angle}° and range : {round(dist/10, 2)}cm") 
+                            if 45 <= curr_angle <= 135:
+                                print("Object on the front")
+                                frontFound = True
+
+                            elif 135 < curr_angle < 225:
+                                print("Object on the right")
+                                rightFound = True
+
+                            elif 225 <= curr_angle < 315:
+                                print("Object on the back")
+                                backFound = True
+
+                            elif (315 <= curr_angle <= 360) or (0 <= curr_angle < 45):
+                                print("Object on the left")
+                                leftFound = True
+
+                    direction = JeanMichelDuma.getCurrentDirection()
+
+                    if frontFound and not JeanMichelDuma.is_object_in_dir['front']:
+                        JeanMichelDuma.is_object_in_dir['front'] = True
+                        if direction == "forward":
+                            print("STEAUP FRONT ENCULER")
+                            JeanMichelDuma.stopMotors()
+                    elif frontFound and JeanMichelDuma.is_object_in_dir['front']:
+                        pass
                     else:
-                        val_count -= 1
-
-                    angles_count_dict[i]['count'] = val_count
+                        JeanMichelDuma.is_object_in_dir['front'] = False
 
 
-        except:
-            print("[DEBUG] closing LIDAR")
-            Lidar.StopScanning()
-            Lidar.Disconnect()
-        Lidar.StopScanning()
-        Lidar.Disconnect()
-    else:
-        print("Error connecting to device")
+                    if rightFound and not JeanMichelDuma.is_object_in_dir['right']:
+                        JeanMichelDuma.is_object_in_dir['right'] = True
+                        if direction == "right":
+                            print("STEAUP RIGHT ENCULER")
+                            JeanMichelDuma.stopMotors()
+                    elif frontFound and JeanMichelDuma.is_object_in_dir['right']:
+                        pass
+                    else:
+                        JeanMichelDuma.is_object_in_dir['right'] = False
+
+
+                    if backFound and not JeanMichelDuma.is_object_in_dir['back']:
+                        JeanMichelDuma.is_object_in_dir['back'] = True
+                        if direction == "backward":
+                            print("STEAUP BACK ENCULER")
+                            JeanMichelDuma.stopMotors()
+                    elif frontFound and JeanMichelDuma.is_object_in_dir['back']:
+                        pass
+                    else:
+                        JeanMichelDuma.is_object_in_dir['back'] = False
+
+
+                    if leftFound and not JeanMichelDuma.is_object_in_dir['left']:
+                        JeanMichelDuma.is_object_in_dir['left'] = True
+                        if direction == "left":
+                            print("STEAUP LEFT ENCULER")
+                            JeanMichelDuma.stopMotors()
+                    elif frontFound and JeanMichelDuma.is_object_in_dir['left']:
+                        pass
+                    else:
+                        JeanMichelDuma.is_object_in_dir['left'] = False
+                    
+                else:
+                    print("Failed to get Lidar Data.")
+
+                time.sleep(0.2)
+
+            laser.turnOff()    
+        except KeyboardInterrupt:
+            laser.turnOff()
+            laser.disconnecting()
+        
+    laser.disconnecting()
 
 # Calculates rotation matrix to euler angles
 # The result is the same as MATLAB except the order
@@ -225,6 +284,7 @@ def storeItem():
             print("stockageArray :", stockageArray)
             isArmMoving = False
             return True
+
 
 def goToGallery(i):
     precision = 4
@@ -356,27 +416,21 @@ def getFirst3Items():
     grabItem("GND")
 
     while True:#numberOfItemInStockage() < 3:
-        arm_thread = threading.Thread(target=lambda q: q.put(storeItem()), args=(que,))
+        arm_thread = threading.Thread(target=storeItem, args=())
         arm_thread.start()
 
         if numberOfItemInStockage() >= 2:
             arm_thread.join()
-            res_arm = que.get()
             break
 
-        drive_thread = threading.Thread(target=lambda q, arg1: q.put( loopDrivingUntilFound(arg1)), args=(que,"GND"))
+        drive_thread = threading.Thread(target=loopDrivingUntilFound, args=("GND",))
         drive_thread.start()
 
         arm_thread.join()
-        res_arm = que.get()
-        print("res_arm :", res_arm)
 
         if drive_thread.is_alive():
             arm.setServosOurAngle([90,90,90])
             drive_thread.join()
-
-        res_drive = que.get()
-        print("res_drive :", res_drive)
 
         grabItem("GND")
 
@@ -389,17 +443,17 @@ def placeItemsInGallery():
 
     JeanMichelDuma.stopMotors()
 
-    storage_thread = threading.Thread(target=lambda q: q.put(reverseStorageSafe()), args=(que,))
+    storage_thread = threading.Thread(target=reverseStorageSafe, args=())
     storage_thread.start()
 
     for i in range(0, 4):
-        drive_thread = threading.Thread(target=lambda q, arg1: q.put(goToGallery(arg1)), args=(que,i))
+        drive_thread = threading.Thread(target=goToGallery, args=(i,))
         drive_thread.start()
 
         storage_thread.join()
 
         if i!= 3:
-            arm_thread = threading.Thread(target=lambda q, arg1: q.put(setGalleryBot(arg1)), args=(que,i))
+            arm_thread = threading.Thread(target=setGalleryBot, args=(i,))
             arm_thread.start()
 
         arm_thread.join()
@@ -424,6 +478,49 @@ def placeItemsInGallery():
 
     hideInside()
     servo.setDefault()
+
+
+def getDistribItem():
+    while(not JeanMichelDuma.setOrientation(90,3)):
+        pass
+    distance = abs(JeanMichelDuma.positionX - dict_zones['DispenserMat'][0])
+    steps = stepsFromCm(distance)
+    JeanMichelDuma.goForward(steps)
+    startTime = time.time()
+    endTime = startTime
+    while(JeanMichelDuma.positionX < dict_zones['DispenserMat'][0] - 5 and (endTime - startTime) < 6):
+        endTime = time.time()
+    while(not JeanMichelDuma.setOrientation(0,4)):
+        pass
+
+    #-----On est au Distrib-------------
+    loopDrivingUntilFound("DSTB")
+    grabItem("DSTB0")
+    storeItem()
+
+
+def placeItemsInGalleryTop():
+    #ON A TOUT
+    storage_thread = threading.Thread(target=reverseStorageSafe, args=())
+    storage_thread.start()
+    #-----On repart vers la gallerie bleue-----
+    drive_thread = threading.Thread(target=goGalleryBluePseudoFinal, args=())
+    drive_thread.start()
+
+    storage_thread.join()
+    drive_thread.join()
+
+    grabElementSlot(0)
+    setArmTopGallery()
+    dist = JeanMichelDuma.positionY - 26 #TODO CHANGER
+    steps = abs(stepsFromCm(dist))
+    JeanMichelDuma.goForward(steps)
+    time.sleep(steps/1000)
+
+    JeanMichelDuma.block()
+    time.sleep(0.1)
+    JeanMichelDuma.stopMotors()
+    ventouse.drop()
 
 
 def goGalleryBluePseudoFinal():
@@ -469,93 +566,31 @@ def startup(side_to_start):
     while(i == 1):
         i = GPIO.input(22)
 
-
     try:
         goToStartPosition(side_to_start)
         if time.time() > last_time_before_camp:
             print("go to camp bitch")
+            campementBrr()
 
         getFirst3Items()
         if time.time() > last_time_before_camp:
             print("go to camp bitch")
+            campementBrr()
 
         placeItemsInGallery()
         if time.time() > last_time_before_camp:
             print("go to camp bitch")
+            campementBrr()
 
-        #-----#On est à la gallerie bleue, on va chercher dans le stockage--------
-        #New version
-        while(not JeanMichelDuma.setOrientation(90,3)):
-            pass
-        distance = abs(JeanMichelDuma.positionX - dict_zones['DispenserMat'][0])
-        steps = stepsFromCm(distance)
-        JeanMichelDuma.goForward(steps)
-        startTime = time.time()
-        endTime = startTime
-        while(JeanMichelDuma.positionX < dict_zones['DispenserMat'][0] - 5 and (endTime - startTime) < 6):
-            endTime = time.time()
-        while(not JeanMichelDuma.setOrientation(0,4)):
-            pass
-        """ JeanMichelDuma.goRight(60000)
-        time.sleep(5)
+        getDistribItem()
+        if time.time() > last_time_before_camp:
+            print("go to camp bitch")
+            campementBrr()
 
-        while(not JeanMichelDuma.goToNewVersion(dict_zones['DispenserMat'][0],dict_zones['DispenserMat'][1],2)):
-            pass
-
-        while(not JeanMichelDuma.setOrientation(0,4)):
-            pass
-
-        JeanMichelDuma.stopMotors() """
-
-        #-----On est au Distrib-------------
-        res_drive = loopDrivingUntilFound("DSTB")
-        grabItem("DSTB0")
-        storeItem()
-
-        storage_thread = threading.Thread(target=lambda q: q.put(reverseStorageSafe()), args=(que,))
-        storage_thread.start()
-        #-----On repart vers la gallerie bleue-----
-        drive_thread = threading.Thread(target=lambda q: q.put(goGalleryBluePseudoFinal()), args=(que,))
-        drive_thread.start()
-
-        storage_thread.join()
-        drive_thread.join()
-
-
-        """ JeanMichelDuma.stopMotors()
-
-        JeanMichelDuma.goLeft(60000)
-        time.sleep(5)
-
-        while(not JeanMichelDuma.goToNewVersion(dict_zones['Galerie_Bleu'][0],dict_zones['Galerie_Bleu'][1],2)):
-            pass
-
-        while(not JeanMichelDuma.setOrientation(0,2)):
-            pass
-
-        JeanMichelDuma.stopMotors() """
-
-        grabElementSlot(0)
-        setArmTopGallery()
-        dist = JeanMichelDuma.positionY - 26 #TODO CHANGER
-        steps = abs(stepsFromCm(dist))
-        JeanMichelDuma.goForward(steps)
-        time.sleep(steps/1000)
-
-        JeanMichelDuma.block()
-        time.sleep(0.1)
-        JeanMichelDuma.stopMotors()
-        ventouse.drop()
-
-        print("steaup final")
-
-        arm.disableTorqueAll()
-        JeanMichelDuma.stopMotors()
-        servo.stopPwm()
-        servo.setDefault()
-        time.sleep(1)
-        servo.stopPwm()
-        exit()
+        placeItemsInGalleryTop()
+        if time.time() > last_time_before_camp:
+            print("go to camp bitch")
+            campementBrr()
 
 
     except KeyboardInterrupt:
@@ -576,13 +611,9 @@ TOPIC_BIG_BOT = "BigBot/2"
 DIST_START = 77
 STEPS_TO_START = stepsFromCm(DIST_START)
 
-
-
 team = "Y" #"P"
 isCodeRunning = True
 isArmMoving = False
-
-que = Queue()
 
 JeanMichelDuma = Robot()
 JeanMichelDuma.DEBUG = 0
@@ -632,3 +663,4 @@ if __name__ == '__main__':
         print('[Warning] On commence cote ', args.s)
         #time.sleep(0.1)
     startup(args.s)
+    
