@@ -91,15 +91,15 @@ def setSlotId(slot):
     if slot==0:
         print("---------------\nSetting 1st")
         arm.setServosOurAngle(slotPositionDrop[0])
-    
+
     if slot==1:
         print("---------------\nSetting 2d")
-        arm.setServosOurAngle(slotPositionDrop[1])  
+        arm.setServosOurAngle(slotPositionDrop[1])
         #time.sleep(0.4)
 
     if slot==2:
         print("---------------\nSetting 3rd")
-        arm.setServosOurAngle(slotPositionDrop[2]) 
+        arm.setServosOurAngle(slotPositionDrop[2])
         #time.sleep(0.4)
 
     if slot==3:
@@ -111,19 +111,19 @@ def setSlotId(slot):
     ventouse.drop()
     arm.MAX_OVERALL_SPEED = 50
     arm.setServosOurAngle([90,90,90])
-'''
+
 def grabElementSlot(slot):
     arm.isInside = False
     arm.MAX_OVERALL_SPEED = 20
     if slot != 3:
         print("---------------\nSetting Inside")
         arm.setServosOurAngle([32, 67, 80])
-    
+
     if slot==0:
         arm.MAX_OVERALL_SPEED = 10
         print("---------------\nGrabbing 1st")
         arm.setServosOurAngle(slotPositionGrab[0])
-    
+
     if slot==1:
         print("---------------\nGrabbing 2d")
         arm.setServosOurAngle(slotPositionGrab[1])
@@ -174,7 +174,7 @@ def setArmTopGallery():
 def throw():
     arm.setServosOurAngle([20,20,20])
     #time.sleep(1)
-    
+
     arm.MAX_OVERALL_SPEED = 15
     arm.setServosOurAngle([-15,0,0])
     #time.sleep(0.15)
@@ -225,7 +225,7 @@ def setOutsideFromInside():
     arm.MAX_OVERALL_SPEED = 20
     arm.isInside = False
 
-
+'''
 arm.enableTorqueAll()
 arm.setMaxTorqueAll(100)
 arm.setTorqueLimitAll(100)
@@ -309,7 +309,7 @@ def main():
 
         hideInside()
 
-            
+
     except KeyboardInterrupt:
         #GPIO.cleanup()
         x = input("Disable torque ?")

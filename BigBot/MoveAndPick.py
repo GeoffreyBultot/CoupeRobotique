@@ -99,7 +99,7 @@ def lidarThread():
                             val_count -= 1
                     else:
                         val_count -= 1
-                    
+
                     angles_count_dict[i]['count'] = val_count
 
 
@@ -458,6 +458,18 @@ def startup(side_to_start):
     lidar_thread = threading.Thread(target=lidarThread, args=())
     lidar_thread.start()
     print("[DEBUG	] Thread LIDAR Started")
+
+    print("[WARNING] wait for TIRER LA CORDE")
+    #   while(pin == 1)
+
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(22, GPIO.IN)
+    i = GPIO.input(22)
+    print(i)
+    while(i == 1):
+        i = GPIO.input(22)
+
+
     try:
         goToStartPosition(side_to_start)
         if time.time() > last_time_before_camp:
@@ -612,20 +624,11 @@ start = time.time()
 end = start + 100
 last_time_before_camp = end - 20
 
-if __name__ == '__main__':	
+if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', type=str, required=True, help='side to start [jaune - mauve]:hibou:')
     args = parser.parse_args()
     for i in range(0,10):
         print('[Warning] On commence cote ', args.s)
-    print("[WARNING] wait for TIRER LA CORDE")
-    #   while(pin == 1)
-    
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(22, GPIO.IN)
-    i = GPIO.input(22)
-    print(i)
-    while(i == 1):
-        i = GPIO.input(22)
         #time.sleep(0.1)
-    #startup(args.s)
+    startup(args.s)
